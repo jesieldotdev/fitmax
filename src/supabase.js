@@ -5,8 +5,8 @@
 // No Supabase, habilite Authentication > Email (no painel Settings > Auth)
 // Não é necessário criar tabelas extras — o auth do Supabase já cuida do login.
 
-const SUPABASE_URL = "https://euyoovgbqkswlrugohhh.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1eW9vdmdicWtzd2xydWdvaGhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MjQzNjQsImV4cCI6MjA5NzMwMDM2NH0.6g3rELFxt6L7_2V5zAP7OCBfjcR-2YmZwt34sKQTUNI";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Utilitário leve para chamar a API do Supabase sem o SDK completo
 async function supabaseFetch(path, options = {}) {
