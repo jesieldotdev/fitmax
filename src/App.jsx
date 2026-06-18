@@ -1,884 +1,875 @@
 import { useState, useEffect } from "react";
-import Icon from "./icons.jsx";
 import { supabase } from "./supabase.js";
 
-// ─── SPIN KEYFRAME via style tag ──────────────────────────────────────────
-const spinStyle = document.createElement("style");
-spinStyle.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
-document.head.appendChild(spinStyle);
+// ─── ANIMATIONS ───────────────────────────────────────────────────────────────
+const styleEl = document.createElement("style");
+styleEl.textContent = `
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  @keyframes heartbeat { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+  @keyframes slideUp { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: #16101E; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  input, button { font-family: inherit; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #6B21A8; border-radius: 2px; }
+`;
+document.head.appendChild(styleEl);
 
-// ─── TEMA ─────────────────────────────────────────────────────────────────
-const TEMA = {
-  M: {
-    bg: "#1A1C20", card: "#22252C", card2: "#2A2E38", border: "#32373F",
-    accent: "#3DDC84", accent2: "#C9A84C", text: "#E8EAF0", muted: "#8892A0",
-    dim: "#4A5260",
-    grad: "linear-gradient(160deg, #1A1C20 0%, #1E2530 100%)",
-    headerGrad: "linear-gradient(180deg, #1E2530 0%, #1A1C20 100%)",
-    tag: "#3DDC8420", tagBorder: "#3DDC8440",
+// ─── THEME ────────────────────────────────────────────────────────────────────
+const T = {
+  bg: "#16101E",
+  bg2: "#1E1628",
+  card: "#211830",
+  card2: "#2A1E3A",
+  border: "#3D2D55",
+  accent: "#E040FB",
+  accent2: "#F06292",
+  accent3: "#FF8A65",
+  gold: "#FFD54F",
+  text: "#F3ECF9",
+  muted: "#9B8AB0",
+  dim: "#5A4A70",
+  grad: "linear-gradient(135deg, #16101E 0%, #1E1628 100%)",
+  gradAccent: "linear-gradient(135deg, #E040FB 0%, #F06292 100%)",
+  gradGold: "linear-gradient(135deg, #FFD54F 0%, #FF8A65 100%)",
+  gradCard: "linear-gradient(160deg, #211830 0%, #2A1E3A 100%)",
+  shadow: "0 8px 32px rgba(224,64,251,0.15)",
+  shadowCard: "0 4px 20px rgba(0,0,0,0.4)",
+};
+
+// ─── EXERCISE DATABASE ────────────────────────────────────────────────────────
+const TREINOS = {
+  A: {
+    nome: "GLÚTEO SUPERIOR",
+    emoji: "🍑",
+    desc: "Foco em ativação do glúteo máximo superior e quadríceps",
+    cor: "#E040FB",
+    exercicios: [
+      { nome: "Hip Thrust com Barra", series: 4, reps: "10–15", descanso: "90s", dica: "Empurre o quadril para cima contraindo forte no topo. Pés afastados na largura dos ombros.", musculo: "Glúteo Máximo" },
+      { nome: "Agachamento Livre", series: 4, reps: "8–12", descanso: "90s", dica: "Desça até as coxas ficarem paralelas ao chão. Joelhos acompanham os pés.", musculo: "Glúteo + Quad" },
+      { nome: "Leg Press 45° (pés altos)", series: 3, reps: "12–15", descanso: "75s", dica: "Coloque os pés mais altos e afastados para ativar mais os glúteos.", musculo: "Glúteo + Quad" },
+      { nome: "Afundo com Halteres", series: 3, reps: "12 cada perna", descanso: "75s", dica: "Dê um passo largo à frente. Joelho traseiro quase toca o chão.", musculo: "Glúteo + Quad" },
+      { nome: "Cadeira Abdutora", series: 3, reps: "15–20", descanso: "60s", dica: "Realize o movimento completo e segure 1 segundo no ponto máximo.", musculo: "Glúteo Médio" },
+      { nome: "Extensão de Quadril no Cabo", series: 3, reps: "15 cada lado", descanso: "60s", dica: "Fixe o core e empurre a perna para trás e para cima contraindo o glúteo.", musculo: "Glúteo Máximo" },
+    ],
   },
-  F: {
-    bg: "#1E1A24", card: "#26202E", card2: "#2E2738", border: "#3A3048",
-    accent: "#C084FC", accent2: "#F472B6", text: "#EDE8F5", muted: "#9088A8",
-    dim: "#5A4E70",
-    grad: "linear-gradient(160deg, #1E1A24 0%, #221830 100%)",
-    headerGrad: "linear-gradient(180deg, #221830 0%, #1E1A24 100%)",
-    tag: "#C084FC20", tagBorder: "#C084FC40",
+  B: {
+    nome: "GLÚTEO INFERIOR",
+    emoji: "💪",
+    desc: "Posterior de coxa, glúteo inferior e definição",
+    cor: "#F06292",
+    exercicios: [
+      { nome: "Stiff com Barra", series: 4, reps: "10–12", descanso: "90s", dica: "Mantenha a barra próxima ao corpo e a coluna neutra. Sinta o alongamento no posterior.", musculo: "Glúteo + Posterior" },
+      { nome: "Mesa Flexora", series: 3, reps: "12–15", descanso: "75s", dica: "Flexione de forma controlada e desça lentamente (3 segundos de descida).", musculo: "Posterior de Coxa" },
+      { nome: "Elevação Pélvica no Solo", series: 4, reps: "20–25", descanso: "60s", dica: "Eleve o quadril e contraia por 2 segundos no topo. Pode usar peso no abdômen.", musculo: "Glúteo Máximo" },
+      { nome: "Cadeira Adutora", series: 3, reps: "15–20", descanso: "60s", dica: "Realize o movimento de forma controlada para definição interna da coxa.", musculo: "Adutores" },
+      { nome: "Agachamento Sumô", series: 3, reps: "15–20", descanso: "75s", dica: "Pés bem afastados e apontados para fora. Desça profundo entre as pernas.", musculo: "Glúteo + Adutores" },
+      { nome: "Coice no Pulley (pé preso)", series: 3, reps: "15 cada lado", descanso: "60s", dica: "Contraia o glúteo no topo do movimento. Não balance o tronco.", musculo: "Glúteo Máximo" },
+    ],
+  },
+  C: {
+    nome: "GLÚTEO MÉDIO",
+    emoji: "✨",
+    desc: "Arredondamento lateral e modelagem do glúteo",
+    cor: "#FF8A65",
+    exercicios: [
+      { nome: "Abdução com Elástico (side walk)", series: 3, reps: "20 passos cada lado", descanso: "60s", dica: "Mantenha a tensão no elástico e passos laterais controlados.", musculo: "Glúteo Médio" },
+      { nome: "Elevação Lateral de Perna (deitada)", series: 3, reps: "20 cada lado", descanso: "60s", dica: "Eleve a perna de forma controlada com o pé em dorsiflexão (ponta para cima).", musculo: "Glúteo Médio" },
+      { nome: "Agachamento Sumô com Halter", series: 3, reps: "15–20", descanso: "75s", dica: "Segure o halter no centro. Desça devagar e suba contraindo glúteos.", musculo: "Glúteo + Adutores" },
+      { nome: "Hip Thrust Unilateral", series: 3, reps: "12 cada lado", descanso: "75s", dica: "Apoie os ombros no banco, uma perna estendida. Empurre o quadril para cima.", musculo: "Glúteo Máximo" },
+      { nome: "Abdução no Cabo em Pé", series: 3, reps: "15 cada lado", descanso: "60s", dica: "Mantenha o tronco estável e abduz a perna para o lado de forma controlada.", musculo: "Glúteo Médio" },
+      { nome: "Agachamento Búlgaro", series: 3, reps: "10 cada perna", descanso: "90s", dica: "Pé traseiro elevado no banco. Desça profundo para máxima ativação do glúteo.", musculo: "Glúteo + Quad" },
+    ],
+  },
+  D: {
+    nome: "FULL GLÚTEO",
+    emoji: "🔥",
+    desc: "Treino completo integrando todos os feixes do glúteo",
+    cor: "#FFD54F",
+    exercicios: [
+      { nome: "Hip Thrust com Barra (pesado)", series: 5, reps: "6–10", descanso: "120s", dica: "Dia de força máxima. Adicione carga progressiva a cada semana.", musculo: "Glúteo Máximo" },
+      { nome: "Agachamento Hack Machine", series: 3, reps: "12–15", descanso: "75s", dica: "Pés altos na plataforma para ativar glúteo. Controle a descida.", musculo: "Glúteo + Quad" },
+      { nome: "Stiff Unilateral com Halter", series: 3, reps: "12 cada lado", descanso: "75s", dica: "Melhora o equilíbrio e ativa mais profundamente o glúteo de cada lado.", musculo: "Glúteo + Posterior" },
+      { nome: "Coice com Elástico no Solo", series: 3, reps: "20 cada lado", descanso: "60s", dica: "Quatro apoios. Empurre o calcanhar para o teto contraindo o glúteo.", musculo: "Glúteo Máximo" },
+      { nome: "Cadeira Abdutora (drop set)", series: 3, reps: "15 + 15 drop", descanso: "60s", dica: "Faça 15 reps, reduza o peso imediatamente e faça mais 15 sem parar.", musculo: "Glúteo Médio" },
+      { nome: "Extensão de Quadril 45° (mesa)", series: 3, reps: "15 cada lado", descanso: "60s", dica: "Mesa de 45 graus. Estenda o quadril e contraia forte no topo.", musculo: "Glúteo Máximo" },
+      { nome: "Panturrilha em Pé", series: 3, reps: "20–25", descanso: "45s", dica: "Complementar para definição da perna. Suba nas pontas dos pés e segure 1s.", musculo: "Panturrilha" },
+    ],
   },
 };
 
-// ─── DADOS DE TREINO ──────────────────────────────────────────────────────
-const PLANOS = {
-  M: {
-    label: "Masculino",
-    divisao: [
-      { dia: "SEG", treino: "A", foco: "Peito + Tríceps" },
-      { dia: "TER", treino: "B", foco: "Costas + Bíceps" },
-      { dia: "QUA", treino: "—", foco: "Descanso / Cardio" },
-      { dia: "QUI", treino: "C", foco: "Pernas + Glúteos" },
-      { dia: "SEX", treino: "D", foco: "Ombros + Posterior" },
-      { dia: "SAB", treino: "HIT", foco: "Cardio HIT 30 min" },
-      { dia: "DOM", treino: "—", foco: "Descanso Total" },
-    ],
-    treinos: {
-      A: { nome: "PEITO + TRÍCEPS", desc: "Foco em supino e variações. Tríceps ao final.", exercicios: [
-        { nome: "Supino Reto com Barra", series: 4, reps: "6–10", descanso: "120s", dica: "Desça até o peito, cotovelos 45°" },
-        { nome: "Supino Inclinado Halter", series: 3, reps: "10–12", descanso: "90s", dica: "Inclinação 30–45°" },
-        { nome: "Crucifixo na Polia", series: 3, reps: "12–15", descanso: "60s", dica: "Arco amplo, sinta o alongamento" },
-        { nome: "Flexão com Peso", series: 3, reps: "10–15", descanso: "60s", dica: "Alternativa ao mergulho" },
-        { nome: "Tríceps Pulley Corda", series: 4, reps: "12–15", descanso: "60s", dica: "Abra as pontas no final" },
-        { nome: "Tríceps Testa (Skullcrusher)", series: 3, reps: "10–12", descanso: "75s", dica: "Barra W ou halteres" },
-      ]},
-      B: { nome: "COSTAS + BÍCEPS", desc: "Puxamentos verticais e horizontais. Bíceps no final.", exercicios: [
-        { nome: "Barra Fixa / Puxada Frontal", series: 4, reps: "6–10", descanso: "120s", dica: "Puxe o cotovelo para baixo" },
-        { nome: "Remada Curvada com Barra", series: 4, reps: "8–10", descanso: "90s", dica: "Tronco 45°, puxe para o umbigo" },
-        { nome: "Remada Unilateral Halter", series: 3, reps: "10–12 cada", descanso: "75s", dica: "Apoie joelho no banco" },
-        { nome: "Pullover com Halter", series: 3, reps: "12–15", descanso: "60s", dica: "Cotovelo ligeiramente dobrado" },
-        { nome: "Rosca Direta com Barra", series: 4, reps: "8–12", descanso: "75s", dica: "Sem balanço do tronco" },
-        { nome: "Rosca Martelo (Hammer Curl)", series: 3, reps: "10–14", descanso: "60s", dica: "Trabalha braquial e braquiorradial" },
-      ]},
-      C: { nome: "PERNAS + GLÚTEOS", desc: "Quadríceps, posterior e glúteos. Maior volume.", exercicios: [
-        { nome: "Agachamento Livre com Barra", series: 4, reps: "6–10", descanso: "150s", dica: "Desça abaixo do paralelo se possível" },
-        { nome: "Leg Press 45°", series: 4, reps: "10–15", descanso: "90s", dica: "Pés na largura dos ombros" },
-        { nome: "Cadeira Extensora", series: 3, reps: "12–15", descanso: "60s", dica: "Segure 1s no topo" },
-        { nome: "Stiff com Barra (RDL)", series: 4, reps: "10–12", descanso: "90s", dica: "Sinta o alongamento dos isquiotibiais" },
-        { nome: "Flexora Deitada", series: 3, reps: "12–15", descanso: "60s", dica: "Movimento controlado" },
-        { nome: "Panturrilha em Pé", series: 4, reps: "15–20", descanso: "45s", dica: "Segure 2s no topo, 2s embaixo" },
-      ]},
-      D: { nome: "OMBROS + POSTERIOR", desc: "Deltoides em todas as cabeças. Hip Thrust e posterior.", exercicios: [
-        { nome: "Desenvolvimento Militar", series: 4, reps: "6–10", descanso: "120s", dica: "Em pé ou sentado, coluna reta" },
-        { nome: "Elevação Lateral com Halter", series: 4, reps: "12–15", descanso: "60s", dica: "Cotovelo levemente dobrado" },
-        { nome: "Remada Alta (Upright Row)", series: 3, reps: "12–14", descanso: "60s", dica: "Puxe cotovelos para cima e fora" },
-        { nome: "Elevação Frontal Alternada", series: 3, reps: "12 cada", descanso: "60s", dica: "Controle a descida" },
-        { nome: "Hip Thrust com Barra", series: 4, reps: "10–12", descanso: "90s", dica: "Squeeze glúteo no topo por 1s" },
-        { nome: "Face Pull na Polia", series: 3, reps: "15", descanso: "60s", dica: "Trabalha deltóide posterior e manguito" },
-      ]},
-    },
-  },
-  F: {
-    label: "Feminino",
-    divisao: [
-      { dia: "SEG", treino: "A", foco: "Glúteos + Quadríceps" },
-      { dia: "TER", treino: "B", foco: "Costas + Bíceps" },
-      { dia: "QUA", treino: "—", foco: "Descanso / Cardio leve" },
-      { dia: "QUI", treino: "C", foco: "Posterior + Core" },
-      { dia: "SEX", treino: "D", foco: "Ombros + Tríceps" },
-      { dia: "SAB", treino: "HIT", foco: "Cardio HIT / Glúteos extra" },
-      { dia: "DOM", treino: "—", foco: "Descanso Total" },
-    ],
-    treinos: {
-      A: { nome: "GLÚTEOS + QUADRÍCEPS", desc: "Foco máximo em glúteos e coxas. Maior volume nessa sessão.", exercicios: [
-        { nome: "Hip Thrust com Barra", series: 4, reps: "10–15", descanso: "90s", dica: "Squeeze no topo por 2s, pé plano" },
-        { nome: "Agachamento Livre / Goblet", series: 4, reps: "10–15", descanso: "90s", dica: "Joelhos para fora, desça fundo" },
-        { nome: "Leg Press 45° (pés altos)", series: 3, reps: "12–15", descanso: "75s", dica: "Pés altos e afastados ativa mais glúteo" },
-        { nome: "Cadeira Abdutora", series: 4, reps: "15–20", descanso: "60s", dica: "Inclinar tronco levemente para frente" },
-        { nome: "Afundo Reverso com Halteres", series: 3, reps: "12 cada", descanso: "75s", dica: "Passo para trás, joelho quase no chão" },
-        { nome: "Elevação Pélvica 1 perna", series: 3, reps: "15 cada", descanso: "60s", dica: "Quadril alto, squeeze glúteo" },
-      ]},
-      B: { nome: "COSTAS + BÍCEPS", desc: "Defina as costas para criar o V que valoriza a cintura.", exercicios: [
-        { nome: "Puxada Frontal (pegada aberta)", series: 4, reps: "10–14", descanso: "75s", dica: "Puxe o cotovelo para baixo e trás" },
-        { nome: "Remada Sentada na Polia", series: 4, reps: "12–14", descanso: "75s", dica: "Peito fora, escápulas juntas no final" },
-        { nome: "Remada Curvada com Halter", series: 3, reps: "12 cada", descanso: "60s", dica: "Puxe cotovelo para o teto" },
-        { nome: "Pullover na Polia", series: 3, reps: "15", descanso: "60s", dica: "Braços estendidos, foco no grande dorsal" },
-        { nome: "Rosca Direta com Halteres", series: 3, reps: "12–14", descanso: "60s", dica: "Gire o pulso ao subir (supinação)" },
-        { nome: "Rosca Concentrada", series: 3, reps: "12–15 cada", descanso: "45s", dica: "Cotovelo fixo na coxa, foco no pico" },
-      ]},
-      C: { nome: "POSTERIOR + CORE", desc: "Isquiotibiais, glúteo médio e core forte para performance.", exercicios: [
-        { nome: "Stiff com Halteres (RDL)", series: 4, reps: "12–14", descanso: "90s", dica: "Sinta o stretch nos isquiotibiais" },
-        { nome: "Flexora Deitada", series: 4, reps: "12–15", descanso: "60s", dica: "Quadril no banco, movimento controlado" },
-        { nome: "Abdutora em pé (polia)", series: 3, reps: "15 cada", descanso: "60s", dica: "Controla a volta, glúteo médio" },
-        { nome: "Agachamento Sumô com Halter", series: 3, reps: "15", descanso: "75s", dica: "Pés bem abertos, ponta dos pés para fora" },
-        { nome: "Prancha Frontal", series: 3, reps: "45s", descanso: "45s", dica: "Quadril neutro, glúteo contraído" },
-        { nome: "Russian Twist com Anilha", series: 3, reps: "20 total", descanso: "45s", dica: "Oblíquos e rotação de tronco" },
-      ]},
-      D: { nome: "OMBROS + TRÍCEPS", desc: "Ombros definidos que criam proporção. Tríceps ao final.", exercicios: [
-        { nome: "Desenvolvimento Arnold", series: 4, reps: "10–14", descanso: "75s", dica: "Rotação completa — trabalha todas as cabeças" },
-        { nome: "Elevação Lateral c/ Halter", series: 4, reps: "14–16", descanso: "60s", dica: "Cotovelo levemente dobrado, sem balançar" },
-        { nome: "Elevação Frontal com Anilha", series: 3, reps: "14", descanso: "60s", dica: "Controla a descida (excêntrico)" },
-        { nome: "Face Pull na Polia", series: 3, reps: "15–18", descanso: "60s", dica: "Postura e saúde do ombro" },
-        { nome: "Tríceps Pulley (corda)", series: 3, reps: "14–16", descanso: "60s", dica: "Abra as pontas no final do movimento" },
-        { nome: "Tríceps Coice com Halter", series: 3, reps: "12–14 cada", descanso: "45s", dica: "Cotovelo fixo, foco na contração" },
-      ]},
-    },
-  },
+const DIVISAO_SEMANAL = [
+  { dia: "SEG", treino: "A", foco: "Glúteo Superior" },
+  { dia: "TER", treino: "B", foco: "Glúteo Inferior" },
+  { dia: "QUA", treino: "—", foco: "Cardio Leve / Descanso" },
+  { dia: "QUI", treino: "C", foco: "Glúteo Médio" },
+  { dia: "SEX", treino: "D", foco: "Full Glúteo 🔥" },
+  { dia: "SAB", treino: "—", foco: "Caminhada 40min" },
+  { dia: "DOM", treino: "—", foco: "Descanso Total" },
+];
+
+const FASES = [
+  { semanas: "1–4", nome: "Ativação", desc: "Aprender os movimentos e ativar corretamente o glúteo", cor: "#C084FC" },
+  { semanas: "5–8", nome: "Hipertrofia", desc: "Aumento de carga progressiva para crescimento máximo", cor: "#F06292" },
+  { semanas: "9–12", nome: "Intensidade", desc: "Técnicas avançadas: drop sets, supersets e peak contraction", cor: "#FF8A65" },
+];
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+const calcIMC = (peso, altura) => {
+  const h = altura / 100;
+  return peso / (h * h);
 };
 
-function calcPerfil({ sexo, peso, altura, objetivo }) {
-  const idade = 28;
-  const tmb = sexo === "F"
-    ? 10 * peso + 6.25 * altura - 5 * idade - 161
-    : 10 * peso + 6.25 * altura - 5 * idade + 5;
-  const tdee = Math.round(tmb * 1.55);
-  const kcal = objetivo === "hipertrofia" ? tdee + 300 : objetivo === "emagrecimento" ? tdee - 400 : tdee;
-  const ptn = Math.round(peso * (sexo === "F" ? 1.9 : 2.1));
-  const gord = Math.round(peso * 0.85);
-  const cho = Math.max(50, Math.round((kcal - ptn * 4 - gord * 9) / 4));
-  const agua = (peso * 35 / 1000).toFixed(1);
-  return { kcal, ptn, cho, gord, agua, tdee };
-}
+const imcLabel = (imc) => {
+  if (imc < 18.5) return { label: "Abaixo do peso", cor: "#64B5F6" };
+  if (imc < 25) return { label: "Peso normal ✓", cor: "#81C784" };
+  if (imc < 30) return { label: "Sobrepeso", cor: "#FFB74D" };
+  return { label: "Obesidade", cor: "#E57373" };
+};
 
-const SEMANAS = Array.from({ length: 12 }, (_, i) => i + 1);
+const calcMacros = (peso, altura, objetivo) => {
+  const tmb = 655 + 9.6 * peso + 1.8 * altura - 4.7 * 30;
+  const tdee = tmb * 1.55;
+  const adj = objetivo === "hipertrofia" ? 300 : objetivo === "emagrecer" ? -400 : 0;
+  const kcal = Math.round(tdee + adj);
+  const ptn = Math.round(peso * 2.0);
+  const fat = Math.round((kcal * 0.25) / 9);
+  const carb = Math.round((kcal - ptn * 4 - fat * 9) / 4);
+  return { kcal, ptn, carb, fat };
+};
 
-// ─── COMPONENTES UTILITÁRIOS ──────────────────────────────────────────────
-function Pill({ children, color, bg }) {
+// ─── SMALL COMPONENTS ────────────────────────────────────────────────────────
+const Btn = ({ children, onClick, style = {}, variant = "primary", disabled = false }) => {
+  const base = {
+    padding: "14px 24px",
+    borderRadius: 14,
+    border: "none",
+    fontSize: 16,
+    fontWeight: 700,
+    cursor: disabled ? "not-allowed" : "pointer",
+    transition: "all .2s",
+    opacity: disabled ? 0.6 : 1,
+    letterSpacing: ".5px",
+  };
+  const variants = {
+    primary: { background: T.gradAccent, color: "#fff", boxShadow: "0 4px 20px rgba(224,64,251,0.35)" },
+    secondary: { background: T.card2, color: T.text, border: `1px solid ${T.border}` },
+    ghost: { background: "transparent", color: T.muted, padding: "10px 16px" },
+    gold: { background: T.gradGold, color: "#1A1020", boxShadow: "0 4px 20px rgba(255,213,79,0.3)" },
+  };
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 4,
-      padding: "3px 9px", borderRadius: 20,
-      fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
-      color, background: bg, border: `1px solid ${color}40`,
-    }}>{children}</span>
-  );
-}
-
-function StatCard({ value, label, color, t, icon: Ic }) {
-  return (
-    <div style={{
-      flex: 1, background: t.card, borderRadius: 16,
-      padding: "16px 10px 14px", textAlign: "center",
-      border: `1px solid ${t.border}`, display: "flex",
-      flexDirection: "column", alignItems: "center", gap: 6,
-    }}>
-      {Ic && <Ic width={16} height={16} style={{ color: color, opacity: 0.7 }} />}
-      <div style={{ fontSize: 24, fontWeight: 900, color, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 9, color: t.muted, letterSpacing: 0.8, fontWeight: 600 }}>{label}</div>
-    </div>
-  );
-}
-
-function InputField({ label, type = "text", value, onChange, placeholder, icon: Ic, rightSlot, t, onKeyDown }) {
-  const [focused, setFocused] = useState(false);
-  return (
-    <div style={{ marginBottom: 14 }}>
-      {label && <div style={{ fontSize: 10, color: t?.muted || "#8892A0", marginBottom: 7, letterSpacing: 1.3, fontWeight: 700 }}>{label}</div>}
-      <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-        {Ic && (
-          <div style={{ position: "absolute", left: 14, color: focused ? (t?.accent || "#3DDC84") : "#4A5260", transition: "color 0.2s", pointerEvents: "none" }}>
-            <Ic width={16} height={16} />
-          </div>
-        )}
-        <input
-          type={type} value={value} onChange={onChange} placeholder={placeholder}
-          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-          onKeyDown={onKeyDown}
-          style={{
-            width: "100%", padding: `14px ${rightSlot ? "48px" : "16px"} 14px ${Ic ? "44px" : "16px"}`,
-            borderRadius: 12, outline: "none",
-            background: "#22252C",
-            border: `1.5px solid ${focused ? (t?.accent || "#3DDC84") + "80" : "#32373F"}`,
-            color: "#E8EAF0", fontSize: 15, transition: "border-color 0.2s",
-          }}
-        />
-        {rightSlot && <div style={{ position: "absolute", right: 0 }}>{rightSlot}</div>}
-      </div>
-    </div>
-  );
-}
-
-// ─── TELA DE AUTH (Supabase) ──────────────────────────────────────────────
-function AuthScreen({ onLogin }) {
-  const [modo, setModo] = useState("login");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [nome, setNome] = useState("");
-  const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [erro, setErro] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const T = { accent: "#3DDC84", muted: "#8892A0", card: "#22252C", border: "#32373F" };
-
-  async function handleLogin() {
-    setErro(""); setLoading(true);
-    const { data, error } = await supabase.signIn(email.trim(), senha);
-    setLoading(false);
-    if (error) { setErro(error.error_description || error.msg || "E-mail ou senha incorretos."); return; }
-    supabase.saveSession(data);
-    const nomeUsuario = data.user?.user_metadata?.nome || email.split("@")[0];
-    onLogin({ email: data.user.email, nome: nomeUsuario, token: data.access_token });
-  }
-
-  async function handleCadastro() {
-    setErro("");
-    if (!nome.trim()) { setErro("Informe seu nome."); return; }
-    if (!email.includes("@")) { setErro("E-mail inválido."); return; }
-    if (senha.length < 6) { setErro("A senha deve ter pelo menos 6 caracteres."); return; }
-    if (senha !== confirmarSenha) { setErro("As senhas não coincidem."); return; }
-    setLoading(true);
-    const { data, error } = await supabase.signUp(email.trim(), senha, nome.trim());
-    setLoading(false);
-    if (error) { setErro(error.msg || "Erro ao criar conta. Tente novamente."); return; }
-    // Supabase pode exigir confirmação de e-mail; se não, faz login direto
-    if (data?.access_token) {
-      supabase.saveSession(data);
-      onLogin({ email: data.user.email, nome: nome.trim(), token: data.access_token });
-    } else {
-      setErro(""); setModo("confirmacao");
-    }
-  }
-
-  if (modo === "confirmacao") {
-    return (
-      <div style={{
-        minHeight: "100dvh", width: "100%", maxWidth: 440, margin: "0 auto",
-        background: "#1A1C20", display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", padding: "0 24px",
-      }}>
-        <div style={{ textAlign: "center", maxWidth: 320 }}>
-          <div style={{ fontSize: 56, marginBottom: 20 }}>📬</div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: "#E8EAF0", marginBottom: 10 }}>Confirme seu e-mail</div>
-          <div style={{ fontSize: 14, color: "#8892A0", lineHeight: 1.6, marginBottom: 28 }}>
-            Enviamos um link para <strong style={{ color: "#E8EAF0" }}>{email}</strong>. Clique nele para ativar sua conta e volte para fazer login.
-          </div>
-          <button onClick={() => setModo("login")} style={{
-            padding: "14px 28px", borderRadius: 12, border: "none",
-            background: "#3DDC84", color: "#0D1A10", fontWeight: 800, fontSize: 15, cursor: "pointer",
-          }}>Ir para o login</button>
-        </div>
-      </div>
-    );
-  }
-
-  const eyeBtn = (
-    <button onClick={() => setMostrarSenha(v => !v)} style={{
-      padding: "0 14px", height: "100%", background: "none", border: "none",
-      color: "#4A5260", cursor: "pointer", display: "flex", alignItems: "center",
-    }}>
-      {mostrarSenha ? <Icon.EyeOff width={17} height={17} /> : <Icon.Eye width={17} height={17} />}
+    <button onClick={disabled ? undefined : onClick} style={{ ...base, ...variants[variant], ...style }}>
+      {children}
     </button>
   );
+};
 
-  return (
+const Card = ({ children, style = {}, onClick }) => (
+  <div
+    onClick={onClick}
+    style={{
+      background: T.gradCard,
+      border: `1px solid ${T.border}`,
+      borderRadius: 18,
+      padding: 20,
+      boxShadow: T.shadowCard,
+      cursor: onClick ? "pointer" : "default",
+      transition: "transform .15s",
+      animation: "fadeIn .4s ease",
+      ...style,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const Badge = ({ children, cor }) => (
+  <span style={{
+    background: cor + "22",
+    color: cor,
+    border: `1px solid ${cor}44`,
+    borderRadius: 8,
+    padding: "3px 10px",
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: ".5px",
+  }}>{children}</span>
+);
+
+const ProgressBar = ({ pct, cor = T.accent, height = 8 }) => (
+  <div style={{ background: T.border, borderRadius: 99, height, overflow: "hidden" }}>
     <div style={{
-      minHeight: "100dvh", width: "100%", maxWidth: 440, margin: "0 auto",
-      background: "#1A1C20", display: "flex", flexDirection: "column",
-    }}>
-      {/* Hero */}
-      <div style={{
-        padding: "56px 28px 36px", textAlign: "center",
-        background: "linear-gradient(180deg, #1E2530 0%, #1A1C20 100%)",
-        borderBottom: "1px solid #22252C",
-      }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: 22,
-          background: "linear-gradient(135deg, #3DDC8428, #3DDC840E)",
-          border: "1px solid #3DDC8440",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 20px",
-        }}>
-          <Icon.Dumbbell width={34} height={34} style={{ color: "#3DDC84" }} />
-        </div>
-        <div style={{ fontSize: 8, letterSpacing: 4, color: "#3DDC84", fontWeight: 700, marginBottom: 8 }}>
-          FICHAS DE TREINO
-        </div>
-        <div style={{ fontSize: 32, fontWeight: 900, color: "#E8EAF0", letterSpacing: -1 }}>MAX</div>
-        <div style={{ fontSize: 13, color: "#8892A0", marginTop: 8 }}>Seu plano de treino personalizado</div>
-      </div>
+      width: `${Math.min(100, pct)}%`,
+      height: "100%",
+      background: cor,
+      borderRadius: 99,
+      transition: "width .5s ease",
+    }} />
+  </div>
+);
 
-      {/* Tabs */}
-      <div style={{ display: "flex", margin: "24px 24px 0", background: "#22252C", borderRadius: 14, padding: 4 }}>
-        {[["login", "Entrar"], ["cadastro", "Criar conta"]].map(([id, label]) => (
-          <button key={id} onClick={() => { setModo(id); setErro(""); }} style={{
-            flex: 1, padding: "11px 0", border: "none", borderRadius: 10, cursor: "pointer",
-            background: modo === id ? "#2A2E38" : "transparent",
-            color: modo === id ? "#E8EAF0" : "#8892A0",
-            fontWeight: 700, fontSize: 14, transition: "all 0.2s",
-          }}>{label}</button>
-        ))}
-      </div>
-
-      {/* Form */}
-      <div style={{ padding: "24px 24px 0", flex: 1 }}>
-        {modo === "cadastro" && (
-          <InputField label="NOME COMPLETO" value={nome} onChange={e => setNome(e.target.value)}
-            placeholder="Seu nome" icon={Icon.User} t={T} />
-        )}
-        <InputField label="E-MAIL" type="email" value={email} onChange={e => setEmail(e.target.value)}
-          placeholder="seu@email.com" icon={Icon.Mail} t={T}
-          onKeyDown={e => e.key === "Enter" && modo === "login" && handleLogin()} />
-        <InputField label="SENHA" type={mostrarSenha ? "text" : "password"} value={senha}
-          onChange={e => setSenha(e.target.value)} placeholder="••••••"
-          icon={Icon.Lock} rightSlot={eyeBtn} t={T}
-          onKeyDown={e => e.key === "Enter" && modo === "login" && handleLogin()} />
-        {modo === "cadastro" && (
-          <InputField label="CONFIRMAR SENHA" type={mostrarSenha ? "text" : "password"}
-            value={confirmarSenha} onChange={e => setConfirmarSenha(e.target.value)}
-            placeholder="••••••" icon={Icon.Lock} rightSlot={eyeBtn} t={T}
-            onKeyDown={e => e.key === "Enter" && handleCadastro()} />
-        )}
-
-        {erro && (
-          <div style={{
-            display: "flex", alignItems: "flex-start", gap: 10,
-            background: "#F871182A", border: "1px solid #F8711840",
-            borderRadius: 10, padding: "11px 14px", marginBottom: 16,
-            fontSize: 13, color: "#F87171",
-          }}>
-            <Icon.AlertCircle width={16} height={16} style={{ flexShrink: 0, marginTop: 1 }} />
-            {erro}
-          </div>
-        )}
-
-        <button
-          onClick={modo === "login" ? handleLogin : handleCadastro}
-          disabled={loading}
-          style={{
-            width: "100%", padding: "16px", borderRadius: 14, border: "none",
-            background: loading ? "#2A2E38" : "linear-gradient(135deg, #3DDC84, #2BB865)",
-            color: loading ? "#4A5260" : "#0D1A10",
-            fontWeight: 900, fontSize: 16, cursor: loading ? "default" : "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            transition: "all 0.2s",
-          }}
-        >
-          {loading
-            ? <><Icon.Loader width={18} height={18} /> Aguarde...</>
-            : modo === "login" ? "Entrar" : "Criar minha conta"
-          }
-        </button>
-
-        {/* Info Supabase */}
-        <div style={{
-          marginTop: 20, padding: "13px 14px",
-          background: "#3DDC840A", border: "1px solid #3DDC8420",
-          borderRadius: 10,
-        }}>
-          <div style={{ fontSize: 10, color: "#3DDC84", fontWeight: 700, marginBottom: 5, letterSpacing: 1 }}>
-            AUTENTICAÇÃO VIA SUPABASE
-          </div>
-          <div style={{ fontSize: 11, color: "#8892A0", lineHeight: 1.6 }}>
-            Configure suas credenciais em <code style={{ background: "#2A2E38", padding: "1px 5px", borderRadius: 4, color: "#3DDC84" }}>src/supabase.js</code> para ativar o login real.
-          </div>
-        </div>
-      </div>
-      <div style={{ height: 40 }} />
+const InputField = ({ label, type = "text", value, onChange, placeholder, icon }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+    {label && <label style={{ color: T.muted, fontSize: 13, fontWeight: 600, letterSpacing: ".5px" }}>{label}</label>}
+    <div style={{ position: "relative" }}>
+      {icon && <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 18 }}>{icon}</span>}
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: "100%",
+          background: T.card2,
+          border: `1px solid ${T.border}`,
+          borderRadius: 12,
+          padding: icon ? "14px 14px 14px 44px" : "14px",
+          color: T.text,
+          fontSize: 16,
+          outline: "none",
+        }}
+      />
     </div>
-  );
-}
+  </div>
+);
 
-// ─── CARD DE EXERCÍCIO ────────────────────────────────────────────────────
-function ExCard({ ex, i, done, onToggle, getCarga, setCarga, t }) {
-  const cor = t.accent;
-  return (
-    <div style={{
-      background: done ? `${cor}0C` : t.card,
-      border: `1.5px solid ${done ? cor + "50" : t.border}`,
-      borderRadius: 18, padding: "16px 16px 14px", marginBottom: 10,
-      transition: "all 0.25s",
-    }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-        <div style={{ flex: 1, paddingRight: 12 }}>
-          <div style={{
-            fontWeight: 700, fontSize: 15, lineHeight: 1.3,
-            color: done ? cor : t.text, marginBottom: 8,
-          }}>
-            {ex.nome}
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <Pill color={t.accent} bg={t.tag}>
-              <Icon.Repeat width={9} height={9} />
-              {ex.series}×
-            </Pill>
-            <Pill color={t.accent2} bg={t.accent2 + "18"}>
-              {ex.reps} reps
-            </Pill>
-            <Pill color={t.muted} bg={t.card2}>
-              <Icon.Timer width={9} height={9} />
-              {ex.descanso}
-            </Pill>
-          </div>
-        </div>
-        <button onClick={onToggle} style={{
-          width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-          border: `2px solid ${done ? cor : t.dim}`,
-          background: done ? cor : "transparent",
-          color: done ? "#000" : t.dim,
-          cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all 0.2s",
-        }}>
-          {done && <Icon.Check width={16} height={16} />}
-        </button>
-      </div>
-
-      {/* Dica */}
-      {ex.dica && (
-        <div style={{
-          marginBottom: 12, fontSize: 11.5, color: t.muted,
-          fontStyle: "italic", lineHeight: 1.5,
-          paddingLeft: 10, borderLeft: `2px solid ${t.border}`,
-        }}>
-          {ex.dica}
-        </div>
-      )}
-
-      {/* Inputs de carga */}
-      <div style={{ display: "flex", gap: 6 }}>
-        {Array.from({ length: ex.series }, (_, s) => (
-          <div key={s} style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, color: t.dim, textAlign: "center", marginBottom: 4, fontWeight: 600 }}>S{s + 1}</div>
-            <input
-              type="number" placeholder="kg" value={getCarga(s)}
-              onChange={e => setCarga(s, e.target.value)}
-              style={{
-                width: "100%", padding: "9px 4px", textAlign: "center",
-                background: t.card2, border: `1.5px solid ${cor}30`,
-                borderRadius: 10, color: cor, fontSize: 13, fontWeight: 700,
-                outline: "none", transition: "border-color 0.2s",
-              }}
-              onFocus={e => e.target.style.borderColor = cor + "80"}
-              onBlur={e => e.target.style.borderColor = cor + "30"}
-            />
-          </div>
-        ))}
-      </div>
+const Stepper = ({ label, value, onChange, min = 0, max = 999, unit = "" }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+    <span style={{ color: T.muted, fontSize: 13, fontWeight: 600 }}>{label}</span>
+    <div style={{ display: "flex", alignItems: "center", gap: 12, background: T.card2, borderRadius: 14, padding: "8px 16px", border: `1px solid ${T.border}` }}>
+      <button onClick={() => onChange(Math.max(min, value - 1))} style={{ background: T.border, border: "none", borderRadius: 8, width: 32, height: 32, color: T.text, fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+      <span style={{ color: T.text, fontSize: 22, fontWeight: 700, minWidth: 60, textAlign: "center" }}>{value}{unit}</span>
+      <button onClick={() => onChange(Math.min(max, value + 1))} style={{ background: T.gradAccent, border: "none", borderRadius: 8, width: 32, height: 32, color: "#fff", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
     </div>
-  );
-}
+  </div>
+);
 
-// ─── STEPPER NUMÉRICO ──────────────────────────────────────────────────────
-function NumStepper({ label, value, setValue, min, max, unit, t }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ fontSize: 10, color: t.muted, marginBottom: 10, letterSpacing: 1.5, fontWeight: 700 }}>{label}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <button onClick={() => setValue(v => Math.max(min, v - 1))} style={{
-          width: 48, height: 48, borderRadius: 14, border: `1.5px solid ${t.border}`,
-          background: t.card2, color: t.text, cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background 0.15s",
-        }}>
-          <Icon.Minus width={18} height={18} />
-        </button>
-        <div style={{
-          flex: 1, height: 48, background: t.card,
-          border: `2px solid ${t.accent}50`,
-          borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 26, fontWeight: 900, color: t.accent, gap: 6,
-        }}>
-          {value}
-          <span style={{ fontSize: 13, fontWeight: 400, color: t.muted }}>{unit}</span>
-        </div>
-        <button onClick={() => setValue(v => Math.min(max, v + 1))} style={{
-          width: 48, height: 48, borderRadius: 14, border: `1.5px solid ${t.border}`,
-          background: t.card2, color: t.text, cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <Icon.Plus width={18} height={18} />
-        </button>
-      </div>
-    </div>
-  );
-}
+// ─── AUTH SCREEN ──────────────────────────────────────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [confirmed, setConfirmed] = useState(false);
 
-// ─── APP PRINCIPAL ────────────────────────────────────────────────────────
-export default function App() {
-  // Auth
-  const [usuario, setUsuario] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
-
-  // Onboarding
-  const [screen, setScreen] = useState("onboard");
-  const [step, setStep] = useState(0);
-  const [sexo, setSexo] = useState(null);
-  const [objetivo, setObjetivo] = useState(null);
-  const [peso, setPeso] = useState(70);
-  const [altura, setAltura] = useState(170);
-  const [perfil, setPerfil] = useState(null);
-
-  // Treino
-  const [aba, setAba] = useState("treino");
-  const [treinoSel, setTreinoSel] = useState("A");
-  const [semana, setSemana] = useState(1);
-  const [cargas, setCargas] = useState({});
-  const [checks, setChecks] = useState({});
-  const [menuAberto, setMenuAberto] = useState(false);
-
-  // Verifica sessão salva
-  useEffect(() => {
-    const session = supabase.getSession();
-    if (session?.access_token && session?.user) {
-      const nomeUsuario = session.user.user_metadata?.nome || session.user.email.split("@")[0];
-      setUsuario({ email: session.user.email, nome: nomeUsuario, token: session.access_token });
+  const handle = async () => {
+    if (!email || !pass) return setMsg({ type: "error", text: "Preencha e-mail e senha" });
+    setLoading(true);
+    setMsg(null);
+    try {
+      let res;
+      if (mode === "login") {
+        res = await supabase.auth.signInWithPassword({ email, password: pass });
+      } else {
+        res = await supabase.auth.signUp({ email, password: pass });
+        if (!res.error && res.data?.user) {
+          setConfirmed(true);
+          setLoading(false);
+          return;
+        }
+      }
+      if (res.error) throw res.error;
+      onAuth(res.data.user);
+    } catch (e) {
+      setMsg({ type: "error", text: e.message || "Erro ao autenticar" });
     }
-    setAuthChecked(true);
-  }, []);
+    setLoading(false);
+  };
 
-  if (!authChecked) {
-    return (
-      <div style={{ minHeight: "100dvh", width: "100%", background: "#1A1C20", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Icon.Loader width={32} height={32} style={{ color: "#3DDC84" }} />
+  if (confirmed) return (
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <Card style={{ maxWidth: 380, width: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: 56, marginBottom: 16 }}>📧</div>
+        <h2 style={{ color: T.text, margin: "0 0 8px" }}>Confirme seu e-mail</h2>
+        <p style={{ color: T.muted, margin: "0 0 20px" }}>Enviamos um link de confirmação para <strong style={{ color: T.accent }}>{email}</strong>. Clique no link e volte para fazer login.</p>
+        <Btn onClick={() => { setConfirmed(false); setMode("login"); }} variant="secondary" style={{ width: "100%" }}>Ir para Login</Btn>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      {/* Logo */}
+      <div style={{ textAlign: "center", marginBottom: 32, animation: "fadeIn .6s ease" }}>
+        <div style={{ fontSize: 64, marginBottom: 8, animation: "heartbeat 2s infinite" }}>🍑</div>
+        <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900, background: T.gradAccent, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GluteoMax</h1>
+        <p style={{ color: T.muted, margin: "6px 0 0", fontSize: 14 }}>Transforme seu glúteo em 12 semanas</p>
       </div>
-    );
-  }
 
-  if (!usuario) return <AuthScreen onLogin={u => setUsuario(u)} />;
+      <Card style={{ maxWidth: 400, width: "100%" }}>
+        {/* Toggle */}
+        <div style={{ display: "flex", background: T.bg, borderRadius: 12, padding: 4, marginBottom: 24, gap: 4 }}>
+          {["login", "cadastro"].map(m => (
+            <button key={m} onClick={() => setMode(m)} style={{
+              flex: 1, padding: "10px", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: "pointer",
+              background: mode === m ? T.gradAccent : "transparent",
+              color: mode === m ? "#fff" : T.muted,
+              transition: "all .2s",
+            }}>
+              {m === "login" ? "Entrar" : "Criar Conta"}
+            </button>
+          ))}
+        </div>
 
-  const t = sexo ? TEMA[sexo] : TEMA.M;
-  const plano = sexo ? PLANOS[sexo] : PLANOS.M;
-
-  const ck = (tr, sem, ex, sr) => `${tr}-S${sem}-${ex}-${sr}`;
-  const getC = (ex, sr) => cargas[ck(treinoSel, semana, ex, sr)] || "";
-  const setC = (ex, sr, v) => setCargas(p => ({ ...p, [ck(treinoSel, semana, ex, sr)]: v }));
-  const checkK = (tr, sem, ex) => `${tr}-S${sem}-${ex}`;
-  const isDone = ex => !!checks[checkK(treinoSel, semana, ex)];
-  const toggle = ex => setChecks(p => ({ ...p, [checkK(treinoSel, semana, ex)]: !p[checkK(treinoSel, semana, ex)] }));
-
-  const exAtual = plano.treinos[treinoSel]?.exercicios || [];
-  const totalDone = exAtual.filter((_, i) => isDone(i)).length;
-  const progresso = exAtual.length ? Math.round((totalDone / exAtual.length) * 100) : 0;
-  const fase = semana <= 4 ? ["ADAPTAÇÃO", "#4ADE80"] : semana <= 8 ? ["FORÇA", "#FBBF24"] : ["INTENSIDADE", "#F87171"];
-
-  const imc = peso / ((altura / 100) ** 2);
-  const imcStr = imc.toFixed(1);
-  const imcInfo = imc < 18.5 ? ["Abaixo do peso", "#60A5FA"]
-    : imc < 25 ? ["Peso ideal", "#4ADE80"]
-    : imc < 30 ? ["Sobrepeso", "#FBBF24"] : ["Obesidade", "#F87171"];
-
-  const accent0 = step === 0 ? "#C9A84C" : step === 1 ? (sexo === "F" ? "#C084FC" : "#3DDC84") : step === 2 ? "#60A5FA" : "#C9A84C";
-  const objLabel = { hipertrofia: "Hipertrofia", emagrecimento: "Emagrecimento", manutencao: "Manutenção" };
-
-  async function handleLogout() {
-    if (usuario.token) await supabase.signOut(usuario.token);
-    supabase.saveSession(null);
-    setUsuario(null);
-    setScreen("onboard"); setStep(0);
-    setSexo(null); setObjetivo(null); setPerfil(null);
-    setCargas({}); setChecks({}); setMenuAberto(false);
-  }
-
-  // ── ONBOARDING ────────────────────────────────────────────────────────
-  if (screen === "onboard") {
-    const canNext = (step === 0 && sexo) || (step === 1 && objetivo) || step >= 2;
-
-    const stepBg = step === 0 ? "#1A1C20" : sexo === "F" ? "#1E1A24" : "#1A1C20";
-
-    return (
-      <div style={{
-        minHeight: "100dvh", width: "100%", maxWidth: 440, margin: "0 auto",
-        background: stepBg, color: "#E8EAF0",
-        display: "flex", flexDirection: "column",
-        transition: "background 0.4s",
-      }}>
-        {/* Topo */}
-        <div style={{ padding: "20px 22px 16px", flexShrink: 0 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: "#555", fontWeight: 700 }}>FICHAS DE TREINO MAX</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "#8892A0" }}>
-                Olá, {usuario.nome.split(" ")[0]} 👋
-              </span>
-              <button onClick={handleLogout} style={{
-                background: "#22252C", border: "1px solid #32373F",
-                borderRadius: 8, color: "#8892A0", fontSize: 11, padding: "5px 10px", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 5,
-              }}>
-                <Icon.LogOut width={12} height={12} /> Sair
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <InputField label="E-mail" type="email" value={email} onChange={setEmail} placeholder="seu@email.com" icon="📧" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label style={{ color: T.muted, fontSize: 13, fontWeight: 600 }}>Senha</label>
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 18 }}>🔒</span>
+              <input
+                type={showPass ? "text" : "password"}
+                value={pass}
+                onChange={e => setPass(e.target.value)}
+                placeholder="••••••••"
+                onKeyDown={e => e.key === "Enter" && handle()}
+                style={{ width: "100%", background: T.card2, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 44px", color: T.text, fontSize: 16, outline: "none" }}
+              />
+              <button onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 18 }}>
+                {showPass ? "🙈" : "👁️"}
               </button>
             </div>
           </div>
-          {/* Progress bar */}
-          <div style={{ display: "flex", gap: 4 }}>
-            {[0,1,2,3].map(i => (
-              <div key={i} style={{
-                flex: 1, height: 3, borderRadius: 2,
-                background: i <= step ? accent0 : "#2A2A2A",
-                transition: "background 0.4s",
-              }} />
+
+          {msg && (
+            <div style={{ background: msg.type === "error" ? "#E5393522" : "#2E7D3222", border: `1px solid ${msg.type === "error" ? "#E5393555" : "#2E7D3255"}`, borderRadius: 10, padding: "10px 14px", color: msg.type === "error" ? "#EF9A9A" : "#A5D6A7", fontSize: 14 }}>
+              {msg.text}
+            </div>
+          )}
+
+          <Btn onClick={handle} disabled={loading} style={{ width: "100%", marginTop: 4 }}>
+            {loading ? "⏳ Aguarde..." : mode === "login" ? "🚀 Entrar" : "✨ Criar Conta Grátis"}
+          </Btn>
+        </div>
+      </Card>
+
+      <p style={{ color: T.dim, fontSize: 12, marginTop: 24, textAlign: "center" }}>
+        Ao continuar, você concorda com nossos termos de uso
+      </p>
+    </div>
+  );
+}
+
+// ─── ONBOARDING ───────────────────────────────────────────────────────────────
+function Onboarding({ onComplete }) {
+  const [step, setStep] = useState(0);
+  const [data, setData] = useState({ objetivo: "", peso: 65, altura: 165, nivel: "" });
+
+  const objetivos = [
+    { id: "hipertrofia", emoji: "🍑", label: "Crescer o Glúteo", desc: "Máxima hipertrofia e volume" },
+    { id: "definir", emoji: "✨", label: "Definir e Empinar", desc: "Tonificar com volume moderado" },
+    { id: "emagrecer", emoji: "🔥", label: "Emagrecer e Modelar", desc: "Perda de gordura com treino intenso" },
+  ];
+
+  const niveis = [
+    { id: "iniciante", emoji: "🌱", label: "Iniciante", desc: "Menos de 6 meses de treino" },
+    { id: "intermediario", emoji: "💪", label: "Intermediária", desc: "6 meses a 2 anos de treino" },
+    { id: "avancada", emoji: "🏆", label: "Avançada", desc: "Mais de 2 anos de treino" },
+  ];
+
+  const imc = calcIMC(data.peso, data.altura);
+  const imcInfo = imcLabel(imc);
+  const macros = data.objetivo ? calcMacros(data.peso, data.altura, data.objetivo === "emagrecer" ? "emagrecer" : data.objetivo === "hipertrofia" ? "hipertrofia" : "manter") : null;
+
+  const steps = [
+    // Step 0: Objective
+    <div key={0} style={{ animation: "slideUp .4s ease" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 52, marginBottom: 12 }}>🎯</div>
+        <h2 style={{ color: T.text, margin: "0 0 8px", fontSize: 24, fontWeight: 800 }}>Qual é o seu objetivo?</h2>
+        <p style={{ color: T.muted, margin: 0, fontSize: 15 }}>Seu plano será personalizado para você</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {objetivos.map(o => (
+          <div key={o.id} onClick={() => { setData(d => ({ ...d, objetivo: o.id })); setTimeout(() => setStep(1), 250); }}
+            style={{
+              background: data.objetivo === o.id ? T.accent + "22" : T.card2,
+              border: `2px solid ${data.objetivo === o.id ? T.accent : T.border}`,
+              borderRadius: 16, padding: "18px 20px", cursor: "pointer", transition: "all .2s",
+              display: "flex", alignItems: "center", gap: 16,
+            }}>
+            <span style={{ fontSize: 36 }}>{o.emoji}</span>
+            <div>
+              <div style={{ color: T.text, fontWeight: 700, fontSize: 17 }}>{o.label}</div>
+              <div style={{ color: T.muted, fontSize: 14 }}>{o.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>,
+
+    // Step 1: Level
+    <div key={1} style={{ animation: "slideUp .4s ease" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 52, marginBottom: 12 }}>💪</div>
+        <h2 style={{ color: T.text, margin: "0 0 8px", fontSize: 24, fontWeight: 800 }}>Qual seu nível?</h2>
+        <p style={{ color: T.muted, margin: 0, fontSize: 15 }}>Adaptaremos a intensidade para você</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {niveis.map(n => (
+          <div key={n.id} onClick={() => { setData(d => ({ ...d, nivel: n.id })); setTimeout(() => setStep(2), 250); }}
+            style={{
+              background: data.nivel === n.id ? T.accent + "22" : T.card2,
+              border: `2px solid ${data.nivel === n.id ? T.accent : T.border}`,
+              borderRadius: 16, padding: "18px 20px", cursor: "pointer", transition: "all .2s",
+              display: "flex", alignItems: "center", gap: 16,
+            }}>
+            <span style={{ fontSize: 36 }}>{n.emoji}</span>
+            <div>
+              <div style={{ color: T.text, fontWeight: 700, fontSize: 17 }}>{n.label}</div>
+              <div style={{ color: T.muted, fontSize: 14 }}>{n.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>,
+
+    // Step 2: Body stats
+    <div key={2} style={{ animation: "slideUp .4s ease" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 52, marginBottom: 12 }}>📏</div>
+        <h2 style={{ color: T.text, margin: "0 0 8px", fontSize: 24, fontWeight: 800 }}>Seus dados corporais</h2>
+        <p style={{ color: T.muted, margin: 0, fontSize: 15 }}>Para calcular suas calorias e macros</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-around" }}>
+          <Stepper label="Peso" value={data.peso} onChange={v => setData(d => ({ ...d, peso: v }))} min={30} max={200} unit="kg" />
+          <Stepper label="Altura" value={data.altura} onChange={v => setData(d => ({ ...d, altura: v }))} min={140} max={220} unit="cm" />
+        </div>
+        {/* IMC */}
+        <Card style={{ textAlign: "center", padding: 16 }}>
+          <div style={{ color: T.muted, fontSize: 13, marginBottom: 4 }}>Seu IMC</div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: imcInfo.cor }}>{imc.toFixed(1)}</div>
+          <div style={{ color: imcInfo.cor, fontSize: 14, fontWeight: 600 }}>{imcInfo.label}</div>
+        </Card>
+        <Btn onClick={() => setStep(3)} style={{ width: "100%" }}>Continuar →</Btn>
+      </div>
+    </div>,
+
+    // Step 3: Nutrition summary
+    <div key={3} style={{ animation: "slideUp .4s ease" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ fontSize: 52, marginBottom: 12 }}>🥗</div>
+        <h2 style={{ color: T.text, margin: "0 0 8px", fontSize: 24, fontWeight: 800 }}>Seu plano nutricional</h2>
+        <p style={{ color: T.muted, margin: 0, fontSize: 15 }}>Personalizado para o seu objetivo</p>
+      </div>
+      {macros && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Calorie card */}
+          <Card style={{ textAlign: "center", background: `linear-gradient(135deg, ${T.accent}22, ${T.accent2}22)`, borderColor: T.accent + "44" }}>
+            <div style={{ color: T.muted, fontSize: 13 }}>Meta Calórica Diária</div>
+            <div style={{ fontSize: 48, fontWeight: 900, background: T.gradAccent, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{macros.kcal}</div>
+            <div style={{ color: T.muted, fontSize: 13 }}>kcal/dia</div>
+          </Card>
+          {/* Macros */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+            {[
+              { label: "Proteína", value: macros.ptn, unit: "g", cor: "#E040FB", emoji: "💪" },
+              { label: "Carboidrato", value: macros.carb, unit: "g", cor: "#64B5F6", emoji: "🍠" },
+              { label: "Gordura", value: macros.fat, unit: "g", cor: "#FFB74D", emoji: "🥑" },
+            ].map(m => (
+              <Card key={m.label} style={{ textAlign: "center", padding: 14 }}>
+                <div style={{ fontSize: 24 }}>{m.emoji}</div>
+                <div style={{ color: m.cor, fontSize: 22, fontWeight: 800 }}>{m.value}<span style={{ fontSize: 12 }}>{m.unit}</span></div>
+                <div style={{ color: T.muted, fontSize: 11 }}>{m.label}</div>
+              </Card>
             ))}
           </div>
-        </div>
-
-        <div style={{ flex: 1, padding: "8px 22px 0", overflowY: "auto" }}>
-          {/* STEP 0 — SEXO */}
-          {step === 0 && (
+          {/* Water */}
+          <Card style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px" }}>
+            <span style={{ fontSize: 32 }}>💧</span>
             <div>
-              <div style={{ fontSize: 27, fontWeight: 900, marginBottom: 6, lineHeight: 1.2 }}>Qual é o seu sexo?</div>
-              <div style={{ fontSize: 13, color: "#778", marginBottom: 28 }}>Os treinos são completamente diferentes por sexo</div>
-              {[
-                { val: "M", label: "Masculino", sub: "Foco em força, volume e hipertrofia geral", emoji: "♂️", cor: "#3DDC84" },
-                { val: "F", label: "Feminino", sub: "Foco em glúteos, posterior e definição", emoji: "♀️", cor: "#C084FC" },
-              ].map(op => (
-                <button key={op.val} onClick={() => setSexo(op.val)} style={{
-                  width: "100%", padding: "18px 20px", marginBottom: 12,
-                  background: sexo === op.val ? op.cor + "15" : "#22252C",
-                  border: `2px solid ${sexo === op.val ? op.cor : "#2E323A"}`,
-                  borderRadius: 18, display: "flex", alignItems: "center", gap: 16,
-                  cursor: "pointer", textAlign: "left", transition: "all 0.2s",
-                }}>
-                  <span style={{ fontSize: 38 }}>{op.emoji}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 16, color: sexo === op.val ? op.cor : "#E8EAF0", marginBottom: 3 }}>{op.label}</div>
-                    <div style={{ fontSize: 12, color: "#778" }}>{op.sub}</div>
-                  </div>
-                  <div style={{
-                    width: 26, height: 26, borderRadius: "50%", flexShrink: 0,
-                    border: `2px solid ${sexo === op.val ? op.cor : "#3A3F4A"}`,
-                    background: sexo === op.val ? op.cor : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.2s",
-                  }}>
-                    {sexo === op.val && <Icon.Check width={13} height={13} style={{ color: "#000" }} />}
-                  </div>
-                </button>
-              ))}
+              <div style={{ color: T.text, fontWeight: 700 }}>{(data.peso * 0.035).toFixed(1)} litros/dia</div>
+              <div style={{ color: T.muted, fontSize: 13 }}>Hidratação recomendada</div>
             </div>
-          )}
-
-          {/* STEP 1 — OBJETIVO */}
-          {step === 1 && (
-            <div>
-              <div style={{ fontSize: 27, fontWeight: 900, marginBottom: 6, lineHeight: 1.2 }}>Seu objetivo</div>
-              <div style={{ fontSize: 13, color: t.muted, marginBottom: 28 }}>Define seus macros e a intensidade do treino</div>
-              {[
-                { val: "hipertrofia", label: "Hipertrofia", sub: "Ganhar massa muscular e volume corporal", icon: Icon.Trophy, cor: t.accent },
-                { val: "emagrecimento", label: "Emagrecimento", sub: "Perder gordura mantendo a massa magra", icon: Icon.Flame, cor: "#F87171" },
-                { val: "manutencao", label: "Manutenção", sub: "Manter peso e melhorar composição corporal", icon: Icon.Scale, cor: "#FBBF24" },
-              ].map(op => (
-                <button key={op.val} onClick={() => setObjetivo(op.val)} style={{
-                  width: "100%", padding: "16px 20px", marginBottom: 10,
-                  background: objetivo === op.val ? op.cor + "12" : t.card,
-                  border: `2px solid ${objetivo === op.val ? op.cor : t.border}`,
-                  borderRadius: 18, display: "flex", alignItems: "center", gap: 16,
-                  cursor: "pointer", textAlign: "left", transition: "all 0.2s",
-                }}>
-                  <div style={{
-                    width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-                    background: op.cor + "18", border: `1px solid ${op.cor}30`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <op.icon width={22} height={22} style={{ color: op.cor }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800, fontSize: 15, color: objetivo === op.val ? op.cor : t.text, marginBottom: 3 }}>{op.label}</div>
-                    <div style={{ fontSize: 12, color: t.muted }}>{op.sub}</div>
-                  </div>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                    border: `2px solid ${objetivo === op.val ? op.cor : t.dim}`,
-                    background: objetivo === op.val ? op.cor : "transparent",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "all 0.2s",
-                  }}>
-                    {objetivo === op.val && <Icon.Check width={12} height={12} style={{ color: "#000" }} />}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* STEP 2 — PESO E ALTURA */}
-          {step === 2 && (
-            <div>
-              <div style={{ fontSize: 27, fontWeight: 900, marginBottom: 6 }}>Peso e altura</div>
-              <div style={{ fontSize: 13, color: t.muted, marginBottom: 28 }}>Para calcular suas calorias e proteínas com precisão</div>
-              <NumStepper label="PESO" value={peso} setValue={setPeso} min={40} max={200} unit="kg" t={t} />
-              <NumStepper label="ALTURA" value={altura} setValue={setAltura} min={140} max={220} unit="cm" t={t} />
-              {/* IMC */}
-              <div style={{
-                background: t.card, borderRadius: 16, padding: "16px 18px",
-                border: `1px solid ${t.border}`, display: "flex",
-                justifyContent: "space-between", alignItems: "center",
-              }}>
-                <div>
-                  <div style={{ fontSize: 10, color: t.muted, marginBottom: 4, letterSpacing: 1 }}>SEU IMC</div>
-                  <div style={{ fontSize: 34, fontWeight: 900, color: imcInfo[1], lineHeight: 1 }}>{imcStr}</div>
-                  <div style={{ fontSize: 10, color: t.muted, marginTop: 3 }}>kg/m²</div>
-                </div>
-                <div style={{
-                  background: imcInfo[1] + "18", border: `1px solid ${imcInfo[1]}40`,
-                  borderRadius: 12, padding: "10px 16px", textAlign: "center",
-                }}>
-                  <div style={{ fontSize: 13, color: imcInfo[1], fontWeight: 800 }}>{imcInfo[0]}</div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3 — RESUMO */}
-          {step === 3 && (() => {
-            const p = calcPerfil({ sexo, peso, altura, objetivo });
-            const objIcon = { hipertrofia: Icon.Trophy, emagrecimento: Icon.Flame, manutencao: Icon.Scale }[objetivo];
-            const ObjIcon = objIcon;
-            return (
-              <div>
-                <div style={{ fontSize: 27, fontWeight: 900, marginBottom: 4 }}>Tudo pronto!</div>
-                <div style={{ fontSize: 13, color: t.muted, marginBottom: 24 }}>Seu plano personalizado está calculado</div>
-
-                {/* Tags resumo */}
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-                  {[
-                    [sexo === "F" ? "♀️ Feminino" : "♂️ Masculino", t.accent],
-                    [{ hipertrofia: "Hipertrofia", emagrecimento: "Emagrecimento", manutencao: "Manutenção" }[objetivo], t.accent2],
-                    [`${peso} kg · ${altura} cm`, t.muted],
-                  ].map(([txt, cor], i) => (
-                    <div key={i} style={{
-                      background: cor + "18", border: `1px solid ${cor}40`,
-                      borderRadius: 20, padding: "5px 12px",
-                      fontSize: 11, color: cor, fontWeight: 700,
-                    }}>{txt}</div>
-                  ))}
-                </div>
-
-                {/* Kcal */}
-                <div style={{
-                  background: `linear-gradient(135deg, ${t.card} 0%, ${t.card2} 100%)`,
-                  border: `1px solid ${t.border}`, borderRadius: 20,
-                  padding: "24px 20px", marginBottom: 14, textAlign: "center",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10 }}>
-                    <Icon.Zap width={13} height={13} style={{ color: t.muted }} />
-                    <div style={{ fontSize: 10, color: t.muted, letterSpacing: 1.5, fontWeight: 700 }}>META CALÓRICA DIÁRIA</div>
-                  </div>
-                  <div style={{ fontSize: 56, fontWeight: 900, color: t.accent, lineHeight: 1 }}>{p.kcal}</div>
-                  <div style={{ fontSize: 13, color: t.muted, marginTop: 6 }}>kcal / dia</div>
-                  <div style={{ display: "flex", justifyContent: "center", gap: 0, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
-                    {[["TDEE", p.tdee + " kcal", t.dim], ["AJUSTE", (objetivo === "hipertrofia" ? "+300" : objetivo === "emagrecimento" ? "−400" : "0") + " kcal", t.accent2], ["ÁGUA", p.agua + " L", "#60A5FA"]].map(([lb, vl, cl], i) => (
-                      <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? `1px solid ${t.border}` : "none" }}>
-                        <div style={{ fontSize: 9, color: t.muted, letterSpacing: 1 }}>{lb}</div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: cl, marginTop: 4 }}>{vl}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Macros */}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <StatCard value={`${p.ptn}g`} label="PROTEÍNA" color={t.accent} t={t} icon={Icon.Weight} />
-                  <StatCard value={`${p.cho}g`} label="CARBOIDRATO" color={t.accent2} t={t} icon={Icon.Zap} />
-                  <StatCard value={`${p.gord}g`} label="GORDURA" color="#60A5FA" t={t} icon={Icon.Droplets} />
-                </div>
-              </div>
-            );
-          })()}
+          </Card>
+          <Btn onClick={() => onComplete(data)} style={{ width: "100%", marginTop: 8 }} variant="gold">
+            🍑 Começar minha transformação!
+          </Btn>
         </div>
-
-        {/* Botões fixos no fundo */}
-        <div style={{ padding: "16px 22px 36px", flexShrink: 0 }}>
-          <button
-            onClick={() => {
-              if (step === 3) { setPerfil(calcPerfil({ sexo, peso, altura, objetivo })); setScreen("app"); }
-              else setStep(s => s + 1);
-            }}
-            disabled={!canNext}
-            style={{
-              width: "100%", padding: "17px", borderRadius: 16, border: "none",
-              background: canNext ? accent0 : "#2A2E38",
-              color: canNext ? "#000" : "#3A3F4A",
-              fontWeight: 900, fontSize: 16, cursor: canNext ? "pointer" : "default",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              transition: "all 0.2s",
-            }}>
-            {step === 3 ? <><Icon.Rocket width={18} height={18} /> Começar meu plano</> : <>Continuar <Icon.ChevronRight width={18} height={18} /></>}
-          </button>
-          {step > 0 && (
-            <button onClick={() => setStep(s => s - 1)} style={{
-              width: "100%", padding: 12, marginTop: 4, border: "none",
-              background: "transparent", color: t.muted, fontSize: 13, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-            }}>
-              <Icon.ChevronLeft width={15} height={15} /> Voltar
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── TELA PRINCIPAL ────────────────────────────────────────────────────
-  const treinoAtual = plano.treinos[treinoSel];
+      )}
+    </div>,
+  ];
 
   return (
-    <div style={{
-      minHeight: "100dvh", width: "100%", maxWidth: 440, margin: "0 auto",
-      background: t.grad, color: t.text,
-      display: "flex", flexDirection: "column",
-    }}>
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 20px" }}>
       {/* Header */}
-      <div style={{
-        background: t.headerGrad, borderBottom: `1px solid ${t.border}`,
-        padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between",
-        position: "sticky", top: 0, zIndex: 10, flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: t.accent + "18", border: `1px solid ${t.accent}30`,
-            display: "flex", alignItems: "center", justifyContent: "center",
+      <div style={{ width: "100%", maxWidth: 440, marginBottom: 24, display: "flex", alignItems: "center", gap: 12 }}>
+        {step > 0 && (
+          <button onClick={() => setStep(s => s - 1)} style={{ background: T.card2, border: `1px solid ${T.border}`, borderRadius: 10, padding: "8px 12px", color: T.muted, cursor: "pointer", fontSize: 18 }}>←</button>
+        )}
+        <div style={{ flex: 1 }}>
+          <ProgressBar pct={(step / 3) * 100} cor={T.accent} height={6} />
+        </div>
+        <span style={{ color: T.muted, fontSize: 13 }}>{step + 1}/4</span>
+      </div>
+
+      <div style={{ width: "100%", maxWidth: 440 }}>
+        {steps[step]}
+      </div>
+    </div>
+  );
+}
+
+// ─── WORKOUT TAB ──────────────────────────────────────────────────────────────
+function WorkoutTab({ semana, perfil }) {
+  const [treinoAtivo, setTreinoAtivo] = useState("A");
+  const [cargas, setCargas] = useState({});
+  const [feitos, setFeitos] = useState({});
+  const [exExpandido, setExExpandido] = useState(null);
+
+  const treino = TREINOS[treinoAtivo];
+  const totalEx = treino.exercicios.length;
+  const doneEx = treino.exercicios.filter((_, i) => feitos[`${treinoAtivo}-${semana}-${i}`]).length;
+  const pct = totalEx > 0 ? Math.round((doneEx / totalEx) * 100) : 0;
+
+  const setCarga = (key, val) => setCargas(c => ({ ...c, [key]: val }));
+  const toggleFeito = (key) => setFeitos(f => ({ ...f, [key]: !f[key] }));
+
+  const faseAtual = semana <= 4 ? FASES[0] : semana <= 8 ? FASES[1] : FASES[2];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Phase badge */}
+      <Card style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px" }}>
+        <div>
+          <div style={{ color: T.muted, fontSize: 12, fontWeight: 600 }}>SEMANA {semana} • FASE</div>
+          <div style={{ color: faseAtual.cor, fontWeight: 800, fontSize: 18 }}>{faseAtual.nome}</div>
+        </div>
+        <Badge cor={faseAtual.cor}>{faseAtual.desc.split(" ").slice(0, 2).join(" ")}</Badge>
+      </Card>
+
+      {/* Workout selector */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+        {Object.entries(TREINOS).map(([k, t]) => (
+          <button key={k} onClick={() => { setTreinoAtivo(k); setExExpandido(null); }} style={{
+            background: treinoAtivo === k ? t.cor + "22" : T.card2,
+            border: `2px solid ${treinoAtivo === k ? t.cor : T.border}`,
+            borderRadius: 14, padding: "12px 8px", cursor: "pointer", transition: "all .2s", textAlign: "center",
           }}>
-            <Icon.Dumbbell width={18} height={18} style={{ color: t.accent }} />
-          </div>
+            <div style={{ fontSize: 22 }}>{t.emoji}</div>
+            <div style={{ color: treinoAtivo === k ? t.cor : T.muted, fontSize: 13, fontWeight: 700, marginTop: 4 }}>Treino {k}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Workout header */}
+      <Card style={{ background: `linear-gradient(135deg, ${treino.cor}22, transparent)`, borderColor: treino.cor + "44" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <span style={{ fontSize: 36 }}>{treino.emoji}</span>
           <div>
-            <div style={{ fontSize: 8, color: t.accent, fontWeight: 700, letterSpacing: 3 }}>FICHAS DE TREINO</div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: t.text, lineHeight: 1.1 }}>MAX</div>
+            <div style={{ color: treino.cor, fontWeight: 800, fontSize: 18, letterSpacing: "1px" }}>{treino.nome}</div>
+            <div style={{ color: T.muted, fontSize: 13 }}>{treino.desc}</div>
           </div>
         </div>
+        <ProgressBar pct={pct} cor={treino.cor} height={8} />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+          <span style={{ color: T.muted, fontSize: 13 }}>{doneEx}/{totalEx} exercícios</span>
+          <span style={{ color: treino.cor, fontWeight: 700, fontSize: 13 }}>{pct}%</span>
+        </div>
+      </Card>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{
-            background: t.accent + "15", border: `1px solid ${t.accent}30`,
-            borderRadius: 20, padding: "4px 10px", fontSize: 11, color: t.accent, fontWeight: 700,
-          }}>
-            {sexo === "F" ? "♀️" : "♂️"} {objLabel[objetivo]}
-          </div>
+      {/* Exercise list */}
+      {treino.exercicios.map((ex, i) => {
+        const feitoKey = `${treinoAtivo}-${semana}-${i}`;
+        const feito = feitos[feitoKey];
+        const expanded = exExpandido === i;
 
-          {/* Menu usuário */}
-          <div style={{ position: "relative" }}>
-            <button onClick={() => setMenuAberto(v => !v)} style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: t.card, border: `1.5px solid ${menuAberto ? t.accent + "60" : t.border}`,
-              color: menuAberto ? t.accent : t.muted, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "all 0.2s",
-            }}>
-              <Icon.User width={17} height={17} />
-            </button>
+        return (
+          <Card key={i} style={{ opacity: feito ? 0.75 : 1, borderColor: feito ? treino.cor + "66" : T.border }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }} onClick={() => setExExpandido(expanded ? null : i)}>
+              {/* Check */}
+              <button onClick={e => { e.stopPropagation(); toggleFeito(feitoKey); }} style={{
+                width: 28, height: 28, borderRadius: 8, border: `2px solid ${feito ? treino.cor : T.border}`,
+                background: feito ? treino.cor : "transparent", cursor: "pointer", flexShrink: 0, marginTop: 2,
+                display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, transition: "all .2s",
+              }}>{feito ? "✓" : ""}</button>
 
-            {menuAberto && (
-              <div style={{
-                position: "absolute", right: 0, top: "calc(100% + 8px)",
-                background: t.card, border: `1px solid ${t.border}`,
-                borderRadius: 14, padding: "8px", minWidth: 190, zIndex: 20,
-                boxShadow: "0 12px 32px #00000055",
-              }}>
-                <div style={{ padding: "10px 12px 10px", borderBottom: `1px solid ${t.border}`, marginBottom: 4 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>{usuario.nome}</div>
-                  <div style={{ fontSize: 11, color: t.muted, marginTop: 2 }}>{usuario.email}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: feito ? T.muted : T.text, fontWeight: 700, fontSize: 16, textDecoration: feito ? "line-through" : "none" }}>{ex.nome}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                  <Badge cor={treino.cor}>{ex.series} séries</Badge>
+                  <Badge cor="#64B5F6">{ex.reps} reps</Badge>
+                  <Badge cor="#81C784">⏱ {ex.descanso}</Badge>
                 </div>
-                <button onClick={() => { setScreen("onboard"); setStep(0); setMenuAberto(false); }} style={{
-                  width: "100%", padding: "9px 12px", border: "none", background: "none",
-                  color: t.muted, fontSize: 13, cursor: "pointer", textAlign: "left", borderRadius: 8,
-                  display: "flex", alignItems: "center", gap: 8, transition: "color 0.15s",
-                }}>
-                  <Icon.Edit width={14} height={14} /> Editar perfil
-                </button>
-                <button onClick={handleLogout} style={{
-                  width: "100%", padding: "9px 12px", border: "none", background: "none",
-                  color: "#F87171", fontSize: 13, cursor: "pointer", textAlign: "left", borderRadius: 8,
-                  display: "flex", alignItems: "center", gap: 8,
-                }}>
-                  <Icon.LogOut width={14} height={14} /> Sair
+              </div>
+              <span style={{ color: T.dim, fontSize: 18, marginTop: 4 }}>{expanded ? "▲" : "▼"}</span>
+            </div>
+
+            {expanded && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}`, animation: "fadeIn .2s ease" }}>
+                {/* Muscle */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                  <span style={{ fontSize: 16 }}>💪</span>
+                  <span style={{ color: treino.cor, fontWeight: 600, fontSize: 14 }}>{ex.musculo}</span>
+                </div>
+                {/* Tip */}
+                <div style={{ background: T.bg, borderRadius: 10, padding: "10px 14px", marginBottom: 14, borderLeft: `3px solid ${treino.cor}` }}>
+                  <div style={{ color: T.muted, fontSize: 12, fontWeight: 600, marginBottom: 4 }}>DICA DE EXECUÇÃO</div>
+                  <div style={{ color: T.text, fontSize: 14, lineHeight: 1.5 }}>{ex.dica}</div>
+                </div>
+                {/* Load tracking */}
+                <div style={{ color: T.muted, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>CARGA POR SÉRIE (kg)</div>
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${ex.series}, 1fr)`, gap: 8 }}>
+                  {Array.from({ length: ex.series }, (_, s) => {
+                    const key = `${treinoAtivo}-S${semana}-${i}-${s}`;
+                    return (
+                      <div key={s} style={{ textAlign: "center" }}>
+                        <div style={{ color: T.dim, fontSize: 12, marginBottom: 4 }}>S{s + 1}</div>
+                        <input
+                          type="number"
+                          value={cargas[key] || ""}
+                          onChange={e => setCarga(key, e.target.value)}
+                          placeholder="—"
+                          style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 4px", color: T.text, fontSize: 15, textAlign: "center", outline: "none" }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })}
+
+      {doneEx === totalEx && totalEx > 0 && (
+        <Card style={{ textAlign: "center", background: `linear-gradient(135deg, ${treino.cor}22, transparent)`, borderColor: treino.cor + "66" }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>🎉</div>
+          <div style={{ color: treino.cor, fontWeight: 800, fontSize: 20 }}>Treino concluído!</div>
+          <div style={{ color: T.muted, fontSize: 14, marginTop: 4 }}>Incrível! Você está mais perto do seu glúteo dos sonhos 🍑</div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── NUTRITION TAB ────────────────────────────────────────────────────────────
+function NutritionTab({ perfil }) {
+  const macros = calcMacros(perfil.peso, perfil.altura, perfil.objetivo === "emagrecer" ? "emagrecer" : perfil.objetivo === "hipertrofia" ? "hipertrofia" : "manter");
+
+  const refeicoes = [
+    { nome: "☀️ Café da Manhã", horario: "7h–8h", pct: 25 },
+    { nome: "🍎 Lanche da Manhã", horario: "10h", pct: 10 },
+    { nome: "🍽️ Almoço", horario: "12h–13h", pct: 35 },
+    { nome: "🥤 Lanche da Tarde", horario: "16h", pct: 15 },
+    { nome: "🌙 Jantar", horario: "19h–20h", pct: 15 },
+  ];
+
+  const dicas = [
+    { emoji: "🥩", texto: "Priorize proteínas em cada refeição (frango, ovo, peixe)" },
+    { emoji: "🍠", texto: "Carboidratos complexos: batata-doce, arroz integral, aveia" },
+    { emoji: "🥑", texto: "Gorduras boas: azeite, abacate, castanhas" },
+    { emoji: "💧", texto: `Beba ${(perfil.peso * 0.035).toFixed(1)}L de água por dia` },
+    { emoji: "⏰", texto: "Coma a cada 3–4 horas para manter o metabolismo ativo" },
+    { emoji: "🏋️", texto: "Consuma proteína até 2h após o treino para máxima recuperação" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Calorie goal */}
+      <Card style={{ textAlign: "center", background: `linear-gradient(135deg, ${T.accent}22, ${T.accent2}22)`, borderColor: T.accent + "44" }}>
+        <div style={{ color: T.muted, fontSize: 13, marginBottom: 4 }}>META CALÓRICA DIÁRIA</div>
+        <div style={{ fontSize: 52, fontWeight: 900, background: T.gradAccent, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{macros.kcal}</div>
+        <div style={{ color: T.muted, fontSize: 14 }}>kcal/dia •
+          <span style={{ color: T.text, fontWeight: 600 }}> objetivo: {perfil.objetivo === "hipertrofia" ? "Crescer o Glúteo" : perfil.objetivo === "definir" ? "Definir e Empinar" : "Emagrecer e Modelar"}</span>
+        </div>
+      </Card>
+
+      {/* Macros */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        {[
+          { label: "Proteína", value: macros.ptn, unit: "g", cor: "#E040FB", emoji: "💪", desc: `${(macros.ptn * 4 / macros.kcal * 100).toFixed(0)}% das calorias` },
+          { label: "Carboidrato", value: macros.carb, unit: "g", cor: "#64B5F6", emoji: "🍠", desc: `${(macros.carb * 4 / macros.kcal * 100).toFixed(0)}% das calorias` },
+          { label: "Gordura", value: macros.fat, unit: "g", cor: "#FFB74D", emoji: "🥑", desc: `${(macros.fat * 9 / macros.kcal * 100).toFixed(0)}% das calorias` },
+        ].map(m => (
+          <Card key={m.label} style={{ textAlign: "center", padding: 14 }}>
+            <div style={{ fontSize: 24, marginBottom: 4 }}>{m.emoji}</div>
+            <div style={{ color: m.cor, fontSize: 26, fontWeight: 800 }}>{m.value}<span style={{ fontSize: 12 }}>{m.unit}</span></div>
+            <div style={{ color: T.muted, fontSize: 10, marginTop: 2 }}>{m.label}</div>
+            <div style={{ color: T.dim, fontSize: 10, marginTop: 2 }}>{m.desc}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Water */}
+      <Card style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px" }}>
+        <span style={{ fontSize: 36 }}>💧</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ color: T.text, fontWeight: 700, fontSize: 18 }}>{(perfil.peso * 0.035).toFixed(1)}L por dia</div>
+          <div style={{ color: T.muted, fontSize: 13 }}>Hidratação recomendada para seu peso</div>
+          <ProgressBar pct={60} cor="#64B5F6" height={6} />
+        </div>
+      </Card>
+
+      {/* Meals */}
+      <div>
+        <div style={{ color: T.text, fontWeight: 700, fontSize: 17, marginBottom: 12 }}>🍽️ Distribuição das Refeições</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {refeicoes.map((r, i) => {
+            const kcalRef = Math.round(macros.kcal * r.pct / 100);
+            return (
+              <Card key={i} style={{ padding: "14px 16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <div>
+                    <span style={{ color: T.text, fontWeight: 600 }}>{r.nome}</span>
+                    <span style={{ color: T.dim, fontSize: 13, marginLeft: 8 }}>{r.horario}</span>
+                  </div>
+                  <span style={{ color: T.accent, fontWeight: 700 }}>{kcalRef} kcal</span>
+                </div>
+                <ProgressBar pct={r.pct} cor={T.accent} height={5} />
+                <div style={{ color: T.dim, fontSize: 12, marginTop: 4 }}>{r.pct}% das calorias diárias</div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tips */}
+      <div>
+        <div style={{ color: T.text, fontWeight: 700, fontSize: 17, marginBottom: 12 }}>💡 Dicas Nutricionais</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {dicas.map((d, i) => (
+            <div key={i} style={{ display: "flex", gap: 12, background: T.card2, borderRadius: 12, padding: "12px 14px", border: `1px solid ${T.border}` }}>
+              <span style={{ fontSize: 22 }}>{d.emoji}</span>
+              <span style={{ color: T.muted, fontSize: 14, lineHeight: 1.5 }}>{d.texto}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WEEKS TAB ────────────────────────────────────────────────────────────────
+function WeeksTab({ semanaAtual, setSemana }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {/* Phases */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {FASES.map((f, i) => (
+          <Card key={i} style={{ borderLeft: `4px solid ${f.cor}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <div style={{ color: f.cor, fontWeight: 800, fontSize: 17 }}>Fase {i + 1}: {f.nome}</div>
+              <Badge cor={f.cor}>Semanas {f.semanas}</Badge>
+            </div>
+            <div style={{ color: T.muted, fontSize: 14 }}>{f.desc}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Weekly split */}
+      <div>
+        <div style={{ color: T.text, fontWeight: 700, fontSize: 17, marginBottom: 12 }}>📅 Divisão Semanal</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {DIVISAO_SEMANAL.map((d, i) => {
+            const isRest = d.treino === "—";
+            const treino = !isRest ? TREINOS[d.treino] : null;
+            return (
+              <div key={i} style={{
+                display: "flex", alignItems: "center", gap: 14,
+                background: T.card2, borderRadius: 12, padding: "12px 16px",
+                border: `1px solid ${isRest ? T.border : treino?.cor + "44"}`,
+              }}>
+                <div style={{ width: 40, textAlign: "center" }}>
+                  <div style={{ color: isRest ? T.dim : treino?.cor, fontWeight: 800, fontSize: 13 }}>{d.dia}</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ color: isRest ? T.muted : T.text, fontWeight: isRest ? 400 : 600, fontSize: 15 }}>{d.foco}</div>
+                </div>
+                {!isRest && (
+                  <Badge cor={treino?.cor}>Treino {d.treino}</Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Week selector */}
+      <div>
+        <div style={{ color: T.text, fontWeight: 700, fontSize: 17, marginBottom: 12 }}>🗓️ Selecionar Semana</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8 }}>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(s => {
+            const fase = s <= 4 ? FASES[0] : s <= 8 ? FASES[1] : FASES[2];
+            return (
+              <button key={s} onClick={() => setSemana(s)} style={{
+                background: semanaAtual === s ? fase.cor + "33" : T.card2,
+                border: `2px solid ${semanaAtual === s ? fase.cor : T.border}`,
+                borderRadius: 12, padding: "12px 4px", cursor: "pointer", textAlign: "center", transition: "all .2s",
+              }}>
+                <div style={{ color: semanaAtual === s ? fase.cor : T.muted, fontSize: 13, fontWeight: 700 }}>S{s}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tips per phase */}
+      <Card style={{ background: `linear-gradient(135deg, #E040FB22, transparent)` }}>
+        <div style={{ color: T.accent, fontWeight: 700, fontSize: 16, marginBottom: 12 }}>🍑 Dicas por Fase</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {[
+            { fase: "Ativação (S1–4)", dica: "Foque na conexão mente-músculo. Sinta o glúteo em cada repetição antes de aumentar a carga.", emoji: "🧠" },
+            { fase: "Hipertrofia (S5–8)", dica: "Aumente a carga semanalmente. Use o princípio da sobrecarga progressiva para máximo crescimento.", emoji: "📈" },
+            { fase: "Intensidade (S9–12)", dica: "Implemente drop sets, supersets e peak contraction de 2 segundos para finalizar o ciclo forte.", emoji: "🔥" },
+          ].map((d, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, padding: "10px 12px", background: T.bg, borderRadius: 10 }}>
+              <span style={{ fontSize: 24 }}>{d.emoji}</span>
+              <div>
+                <div style={{ color: T.text, fontWeight: 600, fontSize: 14 }}>{d.fase}</div>
+                <div style={{ color: T.muted, fontSize: 13, marginTop: 3, lineHeight: 1.4 }}>{d.dica}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+function MainApp({ user, perfil, onLogout }) {
+  const [tab, setTab] = useState("treino");
+  const [semana, setSemana] = useState(1);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const tabs = [
+    { id: "treino", label: "Treino", emoji: "🏋️" },
+    { id: "nutricao", label: "Nutrição", emoji: "🥗" },
+    { id: "semanas", label: "Plano", emoji: "📅" },
+  ];
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
+      {/* Header */}
+      <div style={{ background: T.bg2, borderBottom: `1px solid ${T.border}`, padding: "14px 20px", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ maxWidth: 440, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 28, animation: "heartbeat 3s infinite" }}>🍑</span>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900, background: T.gradAccent, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>GluteoMax</div>
+              <div style={{ color: T.muted, fontSize: 11 }}>Semana {semana} • {semana <= 4 ? "Ativação" : semana <= 8 ? "Hipertrofia" : "Intensidade"}</div>
+            </div>
+          </div>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: T.card2, border: `1px solid ${T.border}`, borderRadius: 12, padding: "8px 12px", cursor: "pointer", fontSize: 20 }}>
+              👤
+            </button>
+            {menuOpen && (
+              <div style={{ position: "absolute", right: 0, top: "110%", background: T.card, border: `1px solid ${T.border}`, borderRadius: 14, padding: 8, minWidth: 180, boxShadow: T.shadow, zIndex: 200, animation: "fadeIn .2s ease" }}>
+                <div style={{ padding: "8px 12px 12px", borderBottom: `1px solid ${T.border}`, marginBottom: 4 }}>
+                  <div style={{ color: T.muted, fontSize: 11 }}>Logado como</div>
+                  <div style={{ color: T.text, fontSize: 13, fontWeight: 600 }}>{user?.email}</div>
+                </div>
+                <button onClick={() => { setMenuOpen(false); onLogout(); }} style={{ width: "100%", background: "none", border: "none", padding: "10px 12px", color: "#EF9A9A", cursor: "pointer", textAlign: "left", fontSize: 14, borderRadius: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                  🚪 Sair
                 </button>
               </div>
             )}
@@ -886,254 +877,80 @@ export default function App() {
         </div>
       </div>
 
-      {/* Fecha menu */}
-      {menuAberto && (
-        <div onClick={() => setMenuAberto(false)} style={{ position: "fixed", inset: 0, zIndex: 9 }} />
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: "flex", background: t.card, borderBottom: `1px solid ${t.border}`, flexShrink: 0 }}>
-        {[
-          ["treino", Icon.Dumbbell, "Treino"],
-          ["macros", Icon.Utensils, "Macros"],
-          ["semanas", Icon.Calendar, "Plano"],
-        ].map(([id, Ic, label]) => (
-          <button key={id} onClick={() => setAba(id)} style={{
-            flex: 1, padding: "12px 0", border: "none", background: "transparent",
-            borderBottom: `2.5px solid ${aba === id ? t.accent : "transparent"}`,
-            color: aba === id ? t.accent : t.dim,
-            fontWeight: 700, fontSize: 11, cursor: "pointer", transition: "color 0.2s",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-          }}>
-            <Ic width={16} height={16} />
-            {label}
-          </button>
-        ))}
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "20px 16px 100px" }}>
+        <div style={{ maxWidth: 440, margin: "0 auto" }}>
+          {tab === "treino" && <WorkoutTab semana={semana} perfil={perfil} />}
+          {tab === "nutricao" && <NutritionTab perfil={perfil} />}
+          {tab === "semanas" && <WeeksTab semanaAtual={semana} setSemana={s => { setSemana(s); setTab("treino"); }} />}
+        </div>
       </div>
 
-      {/* Conteúdo */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
-
-        {/* ── ABA TREINO ── */}
-        {aba === "treino" && (
-          <div style={{ padding: "16px 14px 24px" }}>
-            {/* Seletor de treino */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 9, color: t.muted, letterSpacing: 2, fontWeight: 700, marginBottom: 10 }}>TREINO DO DIA</div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {Object.keys(plano.treinos).map(tr => {
-                  const active = treinoSel === tr;
-                  return (
-                    <button key={tr} onClick={() => setTreinoSel(tr)} style={{
-                      flex: 1, padding: "12px 0", borderRadius: 14,
-                      border: `2px solid ${active ? t.accent : t.border}`,
-                      background: active ? t.accent + "18" : t.card,
-                      color: active ? t.accent : t.dim,
-                      fontWeight: 900, fontSize: 20, cursor: "pointer", transition: "all 0.2s",
-                    }}>{tr}</button>
-                  );
-                })}
-              </div>
-              <div style={{ marginTop: 10, padding: "10px 14px", background: t.card, borderRadius: 12, border: `1px solid ${t.border}` }}>
-                <div style={{ fontSize: 12, color: t.accent, fontWeight: 700 }}>{treinoAtual?.nome}</div>
-                <div style={{ fontSize: 11, color: t.muted, marginTop: 3 }}>{treinoAtual?.desc}</div>
-              </div>
-            </div>
-
-            {/* Semana */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 9, color: t.muted, letterSpacing: 2, fontWeight: 700, marginBottom: 10 }}>SEMANA</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 10 }}>
-                {SEMANAS.map(s => (
-                  <button key={s} onClick={() => setSemana(s)} style={{
-                    width: 34, height: 34, borderRadius: 9,
-                    border: `1.5px solid ${semana === s ? t.accent : t.border}`,
-                    background: semana === s ? t.accent + "20" : t.card,
-                    color: semana === s ? t.accent : t.dim,
-                    fontWeight: 700, fontSize: 11, cursor: "pointer", transition: "all 0.2s",
-                  }}>S{s}</button>
-                ))}
-              </div>
-              <div style={{
-                padding: "10px 14px", borderRadius: 12,
-                background: fase[1] + "12", border: `1px solid ${fase[1]}30`,
-                display: "flex", alignItems: "center", gap: 10,
-              }}>
-                <div style={{ width: 8, height: 8, borderRadius: "50%", background: fase[1], flexShrink: 0 }} />
-                <div>
-                  <span style={{ fontSize: 11, color: fase[1], fontWeight: 800 }}>{fase[0]}</span>
-                  <span style={{ fontSize: 10, color: t.muted, marginLeft: 6 }}>
-                    {semana <= 4 ? "Aprenda a técnica correta" : semana <= 8 ? "Aumente cargas progressivamente" : "Máxima intensidade e volume"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Barra de progresso */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <span style={{ fontSize: 10, color: t.muted, letterSpacing: 1, fontWeight: 700 }}>PROGRESSO</span>
-                <span style={{ fontSize: 11, color: t.accent, fontWeight: 700 }}>{totalDone}/{exAtual.length} exercícios · {progresso}%</span>
-              </div>
-              <div style={{ height: 6, background: t.card2, borderRadius: 3 }}>
-                <div style={{
-                  height: "100%", width: `${progresso}%`, borderRadius: 3,
-                  background: `linear-gradient(90deg, ${t.accent}, ${t.accent2})`,
-                  transition: "width 0.4s ease",
-                }} />
-              </div>
-            </div>
-
-            {/* Lista de exercícios */}
-            {exAtual.map((ex, i) => (
-              <ExCard key={i} ex={ex} i={i}
-                done={isDone(i)} onToggle={() => toggle(i)}
-                getCarga={s => getC(i, s)} setCarga={(s, v) => setC(i, s, v)}
-                t={t}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* ── ABA MACROS ── */}
-        {aba === "macros" && perfil && (
-          <div style={{ padding: "16px 14px 24px" }}>
-            <div style={{ fontSize: 9, color: t.muted, letterSpacing: 2, fontWeight: 700, marginBottom: 18 }}>
-              PLANO NUTRICIONAL PERSONALIZADO
-            </div>
-
-            {/* Kcal hero */}
-            <div style={{
-              background: `linear-gradient(135deg, ${t.card} 0%, ${t.card2} 100%)`,
-              border: `1px solid ${t.border}`, borderRadius: 20,
-              padding: "24px 20px", marginBottom: 14, textAlign: "center",
+      {/* Bottom nav */}
+      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: T.bg2, borderTop: `1px solid ${T.border}`, padding: "10px 16px 16px", zIndex: 100 }}>
+        <div style={{ maxWidth: 440, margin: "0 auto", display: "flex", justifyContent: "space-around" }}>
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, background: "none", border: "none", cursor: "pointer", padding: "8px 4px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 4, transition: "all .2s",
             }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 10 }}>
-                <Icon.Zap width={12} height={12} style={{ color: t.muted }} />
-                <div style={{ fontSize: 10, color: t.muted, letterSpacing: 1.5, fontWeight: 700 }}>META CALÓRICA DIÁRIA</div>
-              </div>
-              <div style={{ fontSize: 58, fontWeight: 900, color: t.accent, lineHeight: 1 }}>{perfil.kcal}</div>
-              <div style={{ fontSize: 12, color: t.muted, marginTop: 6 }}>kcal por dia</div>
-              <div style={{ display: "flex", marginTop: 16, paddingTop: 16, borderTop: `1px solid ${t.border}` }}>
-                {[["GASTO", perfil.tdee + " kcal", t.muted], ["AJUSTE", (objetivo === "hipertrofia" ? "+300" : objetivo === "emagrecimento" ? "−400" : "0") + " kcal", t.accent2], ["ÁGUA", perfil.agua + " L", "#60A5FA"]].map(([lb, vl, cl], i) => (
-                  <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? `1px solid ${t.border}` : "none" }}>
-                    <div style={{ fontSize: 9, color: t.muted, letterSpacing: 1 }}>{lb}</div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: cl, marginTop: 4 }}>{vl}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Macros */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <StatCard value={`${perfil.ptn}g`} label="PROTEÍNA" color={t.accent} t={t} icon={Icon.Weight} />
-              <StatCard value={`${perfil.cho}g`} label="CARBO" color={t.accent2} t={t} icon={Icon.Zap} />
-              <StatCard value={`${perfil.gord}g`} label="GORDURA" color="#60A5FA" t={t} icon={Icon.Droplets} />
-            </div>
-
-            {/* Distribuição proteína */}
-            <div style={{ background: t.card, borderRadius: 18, padding: "18px 16px", border: `1px solid ${t.border}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-                <Icon.Utensils width={14} height={14} style={{ color: t.muted }} />
-                <div style={{ fontSize: 10, color: t.muted, letterSpacing: 1.5, fontWeight: 700 }}>DISTRIBUIÇÃO DE PROTEÍNA</div>
-              </div>
-              {[["☀️ Café da manhã", 0.22], ["🥗 Almoço", 0.30], ["🍎 Lanche", 0.18], ["🌙 Jantar", 0.22], ["🌛 Ceia", 0.08]].map(([ref, pct]) => {
-                const val = Math.round(perfil.ptn * pct);
-                return (
-                  <div key={ref} style={{ marginBottom: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-                      <span style={{ fontSize: 13, color: t.text }}>{ref}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: t.accent }}>{val}g</span>
-                    </div>
-                    <div style={{ height: 4, background: t.card2, borderRadius: 2 }}>
-                      <div style={{ height: "100%", width: `${Math.round(pct * 320)}px`, maxWidth: "100%", background: `linear-gradient(90deg, ${t.accent}90, ${t.accent}50)`, borderRadius: 2 }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── ABA PLANO ── */}
-        {aba === "semanas" && (
-          <div style={{ padding: "16px 14px 24px" }}>
-            <div style={{ fontSize: 9, color: t.muted, letterSpacing: 2, fontWeight: 700, marginBottom: 16 }}>PERIODIZAÇÃO 12 SEMANAS</div>
-            {[
-              ["1–4", "ADAPTAÇÃO", "Técnica e execução. Aprenda o movimento correto.", "#4ADE80", 1, 4],
-              ["5–8", "FORÇA", "Aumente as cargas progressivamente toda semana.", "#FBBF24", 5, 8],
-              ["9–12", "INTENSIDADE", "Drop sets, bi-sets e máxima intensidade.", "#F87171", 9, 12],
-            ].map(([faixa, nome, desc, c, start, end]) => (
-              <div key={faixa} style={{ marginBottom: 14 }}>
-                <div style={{
-                  background: c + "20", border: `1px solid ${c}40`,
-                  borderRadius: "14px 14px 0 0", padding: "12px 16px",
-                  display: "flex", alignItems: "center", gap: 12,
-                }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: c, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 9, color: c, fontWeight: 700, letterSpacing: 1 }}>SEMANAS {faixa}</div>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: c }}>{nome}</div>
-                  </div>
-                </div>
-                <div style={{ background: t.card, border: `1px solid ${t.border}`, borderTop: "none", borderRadius: "0 0 14px 14px", padding: "12px 16px 14px" }}>
-                  <div style={{ fontSize: 11.5, color: t.muted, marginBottom: 12, lineHeight: 1.5 }}>{desc}</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {Array.from({ length: end - start + 1 }, (_, i) => start + i).map(s => (
-                      <button key={s} onClick={() => { setSemana(s); setAba("treino"); }} style={{
-                        padding: "7px 13px", borderRadius: 9,
-                        border: `1.5px solid ${semana === s ? c + "70" : t.border}`,
-                        background: semana === s ? c + "18" : t.card2,
-                        color: semana === s ? c : t.dim,
-                        fontWeight: 700, fontSize: 12, cursor: "pointer", transition: "all 0.15s",
-                      }}>S{s}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Divisão semanal */}
-            <div style={{ fontSize: 9, color: t.muted, letterSpacing: 2, fontWeight: 700, marginBottom: 12, marginTop: 4 }}>
-              DIVISÃO SEMANAL — {sexo === "F" ? "PLANO FEMININO" : "PLANO MASCULINO"}
-            </div>
-            {plano.divisao.map(({ dia, treino: tr, foco }) => {
-              const isRest = tr === "—", isHit = tr === "HIT";
-              const isCurrent = !isRest && !isHit && tr === treinoSel;
-              const cor = isRest ? t.dim : isHit ? "#F87171" : t.accent;
-              return (
-                <div key={dia} style={{
-                  display: "flex", alignItems: "center", gap: 12,
-                  background: isCurrent ? t.accent + "10" : t.card,
-                  border: `1.5px solid ${isCurrent ? t.accent + "40" : t.border}`,
-                  borderRadius: 12, padding: "12px 14px", marginBottom: 6,
-                  cursor: !isRest && !isHit ? "pointer" : "default",
-                  transition: "all 0.2s",
-                }} onClick={() => !isRest && !isHit && (setTreinoSel(tr), setAba("treino"))}>
-                  <span style={{ fontWeight: 700, fontSize: 11, color: t.dim, width: 32 }}>{dia}</span>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 9,
-                    background: cor + "20", border: `1px solid ${cor}40`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 900, fontSize: isRest ? 16 : 13, color: cor,
-                  }}>
-                    {isRest ? "·" : tr}
-                  </div>
-                  <span style={{ fontSize: 13, color: isRest ? t.dim : t.text, flex: 1 }}>{foco}</span>
-                  {isCurrent && (
-                    <span style={{
-                      fontSize: 9, color: t.accent, fontWeight: 800,
-                      background: t.accent + "18", border: `1px solid ${t.accent}30`,
-                      borderRadius: 20, padding: "3px 8px", letterSpacing: 0.5,
-                    }}>ATUAL</span>
-                  )}
-                  {!isRest && !isHit && <Icon.ChevronRight width={14} height={14} style={{ color: t.dim }} />}
-                </div>
-              );
-            })}
-          </div>
-        )}
+              <div style={{
+                fontSize: 24,
+                filter: tab === t.id ? "none" : "grayscale(1) opacity(.5)",
+                transform: tab === t.id ? "scale(1.2)" : "scale(1)",
+                transition: "all .2s",
+              }}>{t.emoji}</div>
+              <span style={{ fontSize: 11, color: tab === t.id ? T.accent : T.dim, fontWeight: tab === t.id ? 700 : 400 }}>{t.label}</span>
+              {tab === t.id && <div style={{ width: 4, height: 4, borderRadius: 99, background: T.accent }} />}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
+}
+
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [perfil, setPerfil] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const savedPerfil = localStorage.getItem("gluteomax_perfil");
+    if (savedPerfil) setPerfil(JSON.parse(savedPerfil));
+
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data?.session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleOnboardingComplete = (data) => {
+    localStorage.setItem("gluteomax_perfil", JSON.stringify(data));
+    setPerfil(data);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem("gluteomax_perfil");
+    setPerfil(null);
+    setUser(null);
+  };
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+      <div style={{ fontSize: 56, animation: "heartbeat 1.5s infinite" }}>🍑</div>
+      <div style={{ width: 32, height: 32, border: `3px solid ${T.border}`, borderTop: `3px solid ${T.accent}`, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+    </div>
+  );
+
+  if (!user) return <AuthScreen onAuth={setUser} />;
+  if (!perfil) return <Onboarding onComplete={handleOnboardingComplete} />;
+  return <MainApp user={user} perfil={perfil} onLogout={handleLogout} />;
 }
