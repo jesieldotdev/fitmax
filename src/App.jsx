@@ -263,23 +263,29 @@ function AuthScreen({ onAuth }) {
     setLoading(true);
     setMsg(null);
     try {
-      let res;
       if (mode === "login") {
-        res = await supabase.auth.signInWithPassword({ email, password: pass });
+        const res = await supabase.signIn(email, pass);
+        if (res.error) throw new Error(res.error.message || "E-mail ou senha incorretos");
+        const user = res.data?.user || { email };
+        supabase.saveSession(res.data);
+        onAuth(user);
       } else {
-        res = await supabase.auth.signUp({ email, password: pass });
-        if (!res.error && res.data?.user) {
-          setConfirmed(true);
-          setLoading(false);
-          return;
-        }
+        const res = await supabase.signUp(email, pass);
+        if (res.error) throw new Error(res.error.message || "Erro ao criar conta");
+        setConfirmed(true);
+        setLoading(false);
+        return;
       }
-      if (res.error) throw res.error;
-      onAuth(res.data.user);
     } catch (e) {
       setMsg({ type: "error", text: e.message || "Erro ao autenticar" });
     }
     setLoading(false);
+  };
+
+  const handleSkip = () => {
+    const user = { email: "local@gluteomax.app", local: true };
+    supabase.saveSession({ user });
+    onAuth(user);
   };
 
   if (confirmed) return (
@@ -346,6 +352,9 @@ function AuthScreen({ onAuth }) {
           <Btn onClick={handle} disabled={loading} style={{ width: "100%", marginTop: 4 }}>
             {loading ? "⏳ Aguarde..." : mode === "login" ? "🚀 Entrar" : "✨ Criar Conta Grátis"}
           </Btn>
+          <button onClick={handleSkip} style={{ width: "100%", background: "none", border: "none", color: T.muted, fontSize: 14, cursor: "pointer", padding: "10px 0", marginTop: 4 }}>
+            Continuar sem conta →
+          </button>
         </div>
       </Card>
 
@@ -920,15 +929,9 @@ export default function App() {
     const savedPerfil = localStorage.getItem("gluteomax_perfil");
     if (savedPerfil) setPerfil(JSON.parse(savedPerfil));
 
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data?.session?.user ?? null);
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
+    const session = supabase.getSession();
+    if (session?.user) setUser(session.user);
+    setLoading(false);
   }, []);
 
   const handleOnboardingComplete = (data) => {
@@ -937,7 +940,9 @@ export default function App() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    const session = supabase.getSession();
+    if (session?.access_token) supabase.signOut(session.access_token).catch(() => {});
+    supabase.saveSession(null);
     localStorage.removeItem("gluteomax_perfil");
     setPerfil(null);
     setUser(null);
