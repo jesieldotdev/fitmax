@@ -495,7 +495,7 @@ function NumStepper({ label, value, setValue, min, max, unit, t }) {
 // ─── APP PRINCIPAL ────────────────────────────────────────────────────────
 export default function App() {
   // Auth
-  const [usuario, setUsuario] = useState(null);
+  const [usuario, setUsuario] = useState({ email: "demo@fitmax.com", nome: "Demo", token: null });
   const [authChecked, setAuthChecked] = useState(false);
 
   // Onboarding
@@ -515,25 +515,25 @@ export default function App() {
   const [checks, setChecks] = useState({});
   const [menuAberto, setMenuAberto] = useState(false);
 
-  // Verifica sessão salva
-  useEffect(() => {
-    const session = supabase.getSession();
-    if (session?.access_token && session?.user) {
-      const nomeUsuario = session.user.user_metadata?.nome || session.user.email.split("@")[0];
-      setUsuario({ email: session.user.email, nome: nomeUsuario, token: session.access_token });
-    }
-    setAuthChecked(true);
-  }, []);
+  // // Verifica sessão salva — LOGIN COMENTADO PARA VALIDAÇÃO DE LAYOUT
+  // useEffect(() => {
+  //   const session = supabase.getSession();
+  //   if (session?.access_token && session?.user) {
+  //     const nomeUsuario = session.user.user_metadata?.nome || session.user.email.split("@")[0];
+  //     setUsuario({ email: session.user.email, nome: nomeUsuario, token: session.access_token });
+  //   }
+  //   setAuthChecked(true);
+  // }, []);
 
-  if (!authChecked) {
-    return (
-      <div style={{ minHeight: "100dvh", width: "100%", background: "#1A1C20", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Icon.Loader width={32} height={32} style={{ color: "#3DDC84" }} />
-      </div>
-    );
-  }
+  // if (!authChecked) {
+  //   return (
+  //     <div style={{ minHeight: "100dvh", width: "100%", background: "#1A1C20", display: "flex", alignItems: "center", justifyContent: "center" }}>
+  //       <Icon.Loader width={32} height={32} style={{ color: "#3DDC84" }} />
+  //     </div>
+  //   );
+  // }
 
-  if (!usuario) return <AuthScreen onLogin={u => setUsuario(u)} />;
+  // if (!usuario) return <AuthScreen onLogin={u => setUsuario(u)} />;
 
   const t = sexo ? TEMA[sexo] : TEMA.M;
   const plano = sexo ? PLANOS[sexo] : PLANOS.M;
